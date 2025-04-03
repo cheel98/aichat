@@ -1,0 +1,209 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* 暗色主题变量 */
+  --dark-primary-color: #1d9bf0;
+  --dark-secondary-color: #0f7ae5;
+  --dark-background-color: #0f1419;
+  --dark-chat-bg: #16181c;
+  --dark-user-message-bg: #1d9bf0;
+  --dark-ai-message-bg: #2c2c2c;
+  --dark-border-color: #38444d;
+  --dark-text-color: #e7e9ea;
+  --dark-text-secondary: #8b98a5;
+
+  /* 亮色主题变量 */
+  --light-primary-color: #1d9bf0;
+  --light-secondary-color: #0f7ae5;
+  --light-background-color: #f7f9fa;
+  --light-chat-bg: #ffffff;
+  --light-user-message-bg: #1d9bf0;
+  --light-ai-message-bg: #f0f2f5;
+  --light-border-color: #e1e8ed;
+  --light-text-color: #14171a;
+  --light-text-secondary: #657786;
+
+  /* 默认使用暗色主题 */
+  --primary-color: var(--dark-primary-color);
+  --secondary-color: var(--dark-secondary-color);
+  --background-color: var(--dark-background-color);
+  --chat-bg: var(--dark-chat-bg);
+  --user-message-bg: var(--dark-user-message-bg);
+  --ai-message-bg: var(--dark-ai-message-bg);
+  --border-color: var(--dark-border-color);
+  --text-color: var(--dark-text-color);
+  --text-secondary: var(--dark-text-secondary);
+  
+  --font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --text-color: #2c3e50;
+  --bg-color: #f5f7fa;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+}
+
+/* 亮色主题样式 */
+[data-theme="light"] {
+  --primary-color: var(--light-primary-color);
+  --secondary-color: var(--light-secondary-color);
+  --background-color: var(--light-background-color);
+  --chat-bg: var(--light-chat-bg);
+  --user-message-bg: var(--light-user-message-bg);
+  --ai-message-bg: var(--light-ai-message-bg);
+  --border-color: var(--light-border-color);
+  --text-color: var(--light-text-color);
+  --text-secondary: var(--light-text-secondary);
+  --text-color: #2c3e50;
+  --bg-color: #f5f7fa;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+}
+
+body {
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  height: 100vh;
+  line-height: 1.5;
+  overflow: hidden;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.5);
+}
+
+/* 确保用户头像文字在两种主题下都有良好的对比度 */
+.user-avatar {
+  color: white !important;
+}
+
+/* 通用按钮样式 */
+.btn-primary {
+  background: #409eff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.btn-primary:hover {
+  background: #66b1ff;
+}
+
+.btn-primary:disabled {
+  background: #a0cfff;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #f4f4f5;
+  color: #606266;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.btn-secondary:hover {
+  background: #e9e9eb;
+}
+
+/* 确保输入框样式统一 */
+input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
+/* 表单样式 */
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-color);
+}
+
+/* 卡片样式 */
+.card {
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* 状态消息样式 */
+.success-message {
+  color: #67c23a;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: rgba(103, 194, 58, 0.1);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.error-message {
+  color: #f56c6c;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: rgba(245, 108, 108, 0.1);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-color);
+}
+
+[data-theme="dark"] {
+  --text-color: #e5eaf3;
+  --bg-color: #1a1a1a;
+  --card-bg: #252525;
+  --border-color: #444444;
+  --input-bg: #333333;
+} 
