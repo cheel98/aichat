@@ -1,7 +1,6 @@
 <template>
   <div class="chat-history">
     <div class="chat-history-header">
-      <h2>{{ $t('history.title') }}</h2>
       <button class="new-chat-btn" @click="startNewChat">
         <span class="icon-plus"></span>
         {{ $t('history.newChat') }}
@@ -30,14 +29,16 @@
         :class="{ 'active': selectedConversationId === conversation.session_id }"
         @click="selectConversation(conversation.session_id)"
       >
-        <div class="conversation-title">
-          {{ conversation.title || $t('history.unnamed') }}
-        </div>
-        <div class="conversation-date">
-          {{ formatDate(conversation.updated_at) }}
+        <div class="conversation-info">
+          <div class="conversation-title">
+            {{ conversation.title || $t('history.unnamed') }}
+          </div>
+          <div class="conversation-date">
+            {{ formatDate(conversation.updated_at) }}
+          </div>
         </div>
         <button class="delete-btn" @click.stop="confirmDelete(conversation.session_id)">
-          <span class="icon-delete"></span>
+          <i class="bi bi-trash3"></i>
         </button>
       </div>
     </div>
@@ -149,7 +150,7 @@ export default {
       } else {
         return date.toLocaleDateString(this.$i18n.state.currentLanguage, { month: 'short', day: 'numeric' });
       }
-    }
+    },
   }
 }
 </script>
@@ -163,44 +164,44 @@ export default {
   display: flex;
   flex-direction: column;
   transition: background-color 0.3s, border-color 0.3s;
+  position: relative;
 }
 
 .chat-history-header {
   padding: 16px;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
-}
-
-.chat-history-header h2 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 0;
 }
 
 .new-chat-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 18px;
-  border: none;
-  background-color: var(--primary-color);
-  color: white;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
+  color: var(--text-color);
   font-size: 14px;
+  width: 100%;
+  transition: all 0.2s;
+  font-weight: 500;
 }
 
 .new-chat-btn:hover {
-  background-color: var(--secondary-color);
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
 }
 
 .icon-plus {
   display: inline-block;
-  width: 14px;
-  height: 14px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z'/%3E%3C/svg%3E");
+  width: 16px;
+  height: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
@@ -267,31 +268,36 @@ export default {
 }
 
 .conversation-item {
-  padding: 12px;
+  position: relative;
+  padding: 12px 16px;
   border-radius: 8px;
-  margin-bottom: 4px;
+  margin: 0 8px 8px 8px;
   cursor: pointer;
-  position: relative;
-  transition: all 0.2s ease;
-  color: var(--text-color);
-  position: relative;
-}
-
-.conversation-item:hover {
-  background-color: rgba(29, 155, 240, 0.1);
+  transition: background-color 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .conversation-item.active {
-  background-color: rgba(29, 155, 240, 0.2);
+  background-color: rgba(29, 155, 240, 0.1);
+}
+
+.conversation-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.conversation-info {
+  flex: 1;
+  min-width: 0; /* 确保flex子项可以缩小到小于其内容大小 */
 }
 
 .conversation-title {
   font-size: 14px;
-  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-right: 24px;
+  color: var(--text-color);
 }
 
 .conversation-date {
@@ -300,37 +306,32 @@ export default {
 }
 
 .delete-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: transparent;
+  visibility: hidden;
+  background: none;
   border: none;
+  color: var(--text-secondary);
+  padding: 0;
+  margin-left: 8px;
+  cursor: pointer;
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s;
-  border-radius: 4px;
-}
-
-.conversation-item:hover .delete-btn {
-  opacity: 1;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 .delete-btn:hover {
-  background-color: rgba(244, 33, 46, 0.1);
+  color: var(--danger-color, #dc3545);
+}
+
+.conversation-item:hover .delete-btn {
+  visibility: visible;
 }
 
 .icon-delete {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23f4212e' d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
+  display: none;
 }
 
 .delete-confirm {

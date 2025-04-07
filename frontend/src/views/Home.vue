@@ -1,15 +1,31 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="{ 'collapsed-sidebar': !isSidebarOpen }">
+    <!-- 顶部浮动控制栏，只在侧边栏折叠时显示 -->
+    <div v-if="!isSidebarOpen" class="floating-controls">
+      <div class="left-controls">
+        <button 
+          class="expand-btn"
+          @click="toggleSidebar"
+          aria-label="展开侧边栏"
+        >
+          <i class="bi bi-layout-sidebar"></i>
+        </button>
+      </div>
+      <div class="right-controls">
+        <UserMenu class="floating-user-menu" @navigate="handleNavigation" />
+      </div>
+    </div>
+    
     <!-- 头部区域 -->
-    <header class="header">
+    <header v-if="isSidebarOpen" class="header">
       <div class="logo-container">
         <img src="../assets/logo.svg" alt="DeepSeek Logo" class="logo" />
         <h1>{{ $t('app.title') }}</h1>
+        <button class="toggle-sidebar-btn" @click="toggleSidebar" title="收起侧边栏">
+          <i class="bi bi-layout-sidebar-inset"></i>
+        </button>
       </div>
       <div class="header-right">
-        <button v-if="!isSidebarOpen" class="toggle-history-btn" @click="toggleSidebar">
-          <i class="bi bi-clock-history"></i>
-        </button>
         <ThemeToggle />
         <LanguageToggle />
         <UserMenu @navigate="handleNavigation" />
@@ -24,6 +40,7 @@
           v-if="isSidebarOpen" 
           @select-conversation="loadConversation"
           @new-chat="startNewChat"
+          @toggle-sidebar="toggleSidebar"
           class="sidebar"
           ref="chatHistory"
         />
@@ -32,7 +49,7 @@
       <!-- 主要内容区域 - 聊天界面 -->
       <div 
         class="content-area"
-        :class="{ 'with-sidebar': isSidebarOpen }"
+        :class="{ 'with-sidebar': isSidebarOpen, 'full-width': !isSidebarOpen }"
       >
         <ChatInterface 
           :conversation-id="currentConversationId"
@@ -194,6 +211,7 @@ export default {
   overflow: hidden;
   background-color: var(--background-color);
   color: var(--text-color);
+  transition: all 0.3s ease;
 }
 
 .header {
@@ -205,11 +223,27 @@ export default {
   border-bottom: 1px solid var(--border-color);
   background-color: var(--chat-bg);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.header.collapsed {
+  height: 50px;
+  padding: 0 10px;
+  justify-content: flex-end;
+}
+
+.collapsed-sidebar .header {
+  box-shadow: none;
+}
+
+.content-area.full-width {
+  padding-top: 10px;
 }
 
 .logo-container {
   display: flex;
   align-items: center;
+  position: relative; /* 为绝对定位的子元素提供参考 */
 }
 
 .logo {
@@ -222,6 +256,7 @@ export default {
   font-size: 18px;
   font-weight: bold;
   margin: 0;
+  margin-right: 10px; /* 为侧边栏折叠按钮留出空间 */
 }
 
 .header-right {
@@ -230,22 +265,25 @@ export default {
   gap: 15px;
 }
 
-.toggle-history-btn {
+.toggle-sidebar-btn {
   background: transparent;
   border: none;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--text-color);
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  font-size: 16px;
+  margin-left: 5px; /* 与标题保持一定距离 */
 }
 
-.toggle-history-btn:hover {
+.toggle-sidebar-btn:hover {
   background-color: rgba(0, 0, 0, 0.06);
+  color: var(--primary-color);
 }
 
 .main-content {
@@ -256,21 +294,27 @@ export default {
 }
 
 .sidebar {
-  width: 250px;
+  width: 280px;
   border-right: 1px solid var(--border-color);
   background-color: var(--chat-bg);
   flex-shrink: 0;
   overflow-y: auto;
+  z-index: 10;
 }
 
 .content-area {
   flex: 1;
   overflow: hidden;
-  transition: margin-left 0.3s ease;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .content-area.with-sidebar {
   margin-left: 0;
+}
+
+.content-area.full-width {
+  padding-top: 10px;
 }
 
 .modal-overlay {
@@ -339,8 +383,53 @@ export default {
 .slide-enter-active, .slide-leave-active {
   transition: transform 0.3s ease;
 }
+
+.slide-leave-from, .slide-enter-to {
+  transform: translateX(0);
+}
+
 .slide-enter-from, .slide-leave-to {
   transform: translateX(-100%);
+}
+
+/* 打开侧边栏按钮 */
+.open-sidebar-btn {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.open-sidebar-btn:hover {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* 折叠后顶部栏样式 */
+.collapsed-sidebar .header {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border-bottom: none;
+  opacity: 0;
+}
+
+.collapsed-sidebar .content-area {
+  height: 100vh;
 }
 
 @media (max-width: 768px) {
@@ -361,5 +450,58 @@ export default {
     width: 95%;
     max-width: none;
   }
+}
+
+/* 浮动控制栏样式 */
+.floating-controls {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  right: 15px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.left-controls {
+  display: flex;
+  align-items: center;
+}
+
+.right-controls {
+  display: flex;
+  align-items: center;
+}
+
+.expand-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.expand-btn:hover {
+  background-color: var(--secondary-color, #66b1ff);
+}
+
+.floating-user-menu {
+  background-color: var(--card-bg);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 全屏模式下的样式调整 */
+.collapsed-sidebar .content-area {
+  height: 100vh;
+  padding-top: 0;
 }
 </style> 
