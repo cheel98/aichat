@@ -2,30 +2,29 @@ package models
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // ChatSession 聊天会话模型
 type ChatSession struct {
-	ID        uint64    `json:"id"`
-	SessionID string    `json:"session_id"`
-	UserID    uint64    `json:"user_id"`
-	Title     string    `json:"title"`
-	IsPinned  int       `json:"is_pinned"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	gorm.Model
+	SessionID string `gorm:"type:varchar(50);not null;unique" json:"session_id"`
+	UserID    uint64 `gorm:"not null" json:"user_id"`
+	Title     string `gorm:"type:varchar(100);not null" json:"title"`
+	IsPinned  int    `gorm:"type:tinyint;default:0" json:"is_pinned"`
 	// 这些字段不存储在数据库中，用于前端显示
-	MessageCount int          `json:"message_count,omitempty"`
-	LastMessage  *ChatMessage `json:"last_message,omitempty"`
+	MessageCount int          `gorm:"-" json:"message_count,omitempty"`
+	LastMessage  *ChatMessage `gorm:"-" json:"last_message,omitempty"`
 }
 
 // ChatMessage 聊天消息模型
 type ChatMessage struct {
-	ID        uint64    `json:"id"`
-	UserID    uint64    `json:"user_id"`
-	SessionID string    `json:"session_id"`
-	Role      string    `json:"role"` // user 或 ai
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
+	gorm.Model
+	UserID    uint64 `gorm:"not null" json:"user_id"`
+	SessionID string `gorm:"type:varchar(50);not null" json:"session_id"`
+	Role      string `gorm:"type:varchar(20);not null" json:"role"` // user 或 ai
+	Content   string `gorm:"type:text;not null" json:"content"`
 }
 
 // CreateSessionRequest 创建会话请求

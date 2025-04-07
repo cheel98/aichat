@@ -1,47 +1,42 @@
 package models
 
 import (
-	"database/sql"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // User 用户模型
 type User struct {
-	ID            uint64         `json:"id"`
-	Username      string         `json:"username"`
-	Password      string         `json:"-"` // 不序列化到JSON
-	Email         sql.NullString `json:"email"`
-	Phone         sql.NullString `json:"phone"`
-	Avatar        sql.NullString `json:"avatar"`
-	Status        int            `json:"status"`
-	LoginType     int            `json:"login_type"`
-	LastLoginTime sql.NullTime   `json:"last_login_time"`
-	LastLoginIP   sql.NullString `json:"last_login_ip"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	gorm.Model
+	Username      string     `gorm:"type:varchar(50);not null;unique" json:"username"`
+	Password      string     `gorm:"type:varchar(255);not null" json:"-"`
+	Email         string     `gorm:"type:varchar(100);unique" json:"email"`
+	Phone         string     `gorm:"type:varchar(20);unique" json:"phone"`
+	Avatar        string     `gorm:"type:varchar(255)" json:"avatar"`
+	Status        int        `gorm:"type:tinyint;default:1" json:"status"`
+	LoginType     int        `gorm:"type:tinyint;not null" json:"login_type"`
+	LastLoginTime *time.Time `json:"last_login_time"`
+	LastLoginIP   string     `gorm:"type:varchar(50)" json:"last_login_ip"`
 }
 
 // UserSession 用户会话模型
 type UserSession struct {
-	ID         uint64    `json:"id"`
-	UserID     uint64    `json:"user_id"`
-	Token      string    `json:"token"`
-	ExpireTime time.Time `json:"expire_time"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	gorm.Model
+	UserID     uint64    `gorm:"not null" json:"user_id"`
+	Token      string    `gorm:"type:varchar(255);not null;unique" json:"token"`
+	ExpireTime time.Time `gorm:"not null" json:"expire_time"`
 }
 
 // UserSettings 用户设置模型
 type UserSettings struct {
-	ID                  uint64    `json:"id"`
-	UserID              uint64    `json:"user_id"`
-	Theme               string    `json:"theme"`
-	Language            string    `json:"language"`
-	NotificationEnabled int       `json:"notification_enabled"`
-	Prompt              string    `json:"prompt"`
-	Rules               string    `json:"rules"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	gorm.Model
+	UserID              uint64 `gorm:"not null;unique" json:"user_id"`
+	Theme               string `gorm:"type:varchar(20);default:'light'" json:"theme"`
+	Language            string `gorm:"type:varchar(10);default:'zh-CN'" json:"language"`
+	NotificationEnabled int    `gorm:"type:tinyint;default:1" json:"notification_enabled"`
+	Prompt              string `gorm:"type:text" json:"prompt"`
+	Rules               string `gorm:"type:text" json:"rules"`
 }
 
 // RegisterRequest 注册请求
@@ -50,14 +45,14 @@ type RegisterRequest struct {
 	Password  string `json:"password" binding:"required,min=6,max=100"`
 	Email     string `json:"email" binding:"omitempty,email"`
 	Phone     string `json:"phone" binding:"omitempty,min=5,max=20"`
-	LoginType int    `json:"login_type" binding:"required,oneof=1 2"` // 1: email, 2: phone
+	LoginType int    `json:"login_type" binding:"required,oneof=1 2"`
 }
 
 // LoginRequest 登录请求
 type LoginRequest struct {
-	Account   string `json:"account" binding:"required"` // 邮箱或手机号
+	Account   string `json:"account" binding:"required"`
 	Password  string `json:"password" binding:"required"`
-	LoginType int    `json:"login_type" binding:"required,oneof=1 2"` // 1: email, 2: phone
+	LoginType int    `json:"login_type" binding:"required,oneof=1 2"`
 }
 
 // LoginResponse 登录响应

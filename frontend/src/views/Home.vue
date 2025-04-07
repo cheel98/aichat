@@ -11,9 +11,6 @@
           <i class="bi bi-layout-sidebar"></i>
         </button>
       </div>
-      <div class="right-controls">
-        <UserMenu class="floating-user-menu" @navigate="handleNavigation" />
-      </div>
     </div>
     
     <!-- 头部区域 -->
@@ -236,8 +233,43 @@ export default {
   box-shadow: none;
 }
 
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar {
+  width: 280px;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--chat-bg);
+  flex-shrink: 0;
+  overflow-y: auto;
+  z-index: 10;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  width: 100%;
+  transform-origin: left center;
+}
+
+.content-area.with-sidebar {
+  margin-left: 0;
+  width: calc(100% - 280px);
+  transform: translateX(0);
+}
+
 .content-area.full-width {
+  width: 100%;
   padding-top: 10px;
+  transform: translateX(0);
 }
 
 .logo-container {
@@ -286,35 +318,50 @@ export default {
   color: var(--primary-color);
 }
 
-.main-content {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  position: relative;
+/* 侧边栏过渡动画 */
+.slide-enter-active, .slide-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sidebar {
-  width: 280px;
-  border-right: 1px solid var(--border-color);
-  background-color: var(--chat-bg);
-  flex-shrink: 0;
-  overflow-y: auto;
-  z-index: 10;
+.slide-leave-from, .slide-enter-to {
+  transform: translateX(0);
+  opacity: 1;
 }
 
-.content-area {
-  flex: 1;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  position: relative;
+.slide-enter-from, .slide-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
 }
 
-.content-area.with-sidebar {
+/* 全屏模式下的样式调整 */
+.collapsed-sidebar .content-area {
+  height: 100vh;
+  padding-top: 0;
+  width: 100%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(0);
+}
+
+.collapsed-sidebar .main-content {
   margin-left: 0;
 }
 
-.content-area.full-width {
-  padding-top: 10px;
+/* 聊天界面过渡动画 */
+.chat-interface-enter-active,
+.chat-interface-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-interface-enter-from,
+.chat-interface-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.chat-interface-enter-to,
+.chat-interface-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .modal-overlay {
@@ -379,19 +426,6 @@ export default {
   max-height: calc(85vh - 60px);
 }
 
-/* 侧边栏过渡动画 */
-.slide-enter-active, .slide-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-leave-from, .slide-enter-to {
-  transform: translateX(0);
-}
-
-.slide-enter-from, .slide-leave-to {
-  transform: translateX(-100%);
-}
-
 /* 打开侧边栏按钮 */
 .open-sidebar-btn {
   position: absolute;
@@ -430,6 +464,9 @@ export default {
 
 .collapsed-sidebar .content-area {
   height: 100vh;
+  padding-top: 0;
+  width: 100%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (max-width: 768px) {
@@ -457,19 +494,12 @@ export default {
   position: fixed;
   top: 15px;
   left: 15px;
-  right: 15px;
   z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
 
 .left-controls {
-  display: flex;
-  align-items: center;
-}
-
-.right-controls {
   display: flex;
   align-items: center;
 }
@@ -497,11 +527,5 @@ export default {
   background-color: var(--card-bg);
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* 全屏模式下的样式调整 */
-.collapsed-sidebar .content-area {
-  height: 100vh;
-  padding-top: 0;
 }
 </style> 
