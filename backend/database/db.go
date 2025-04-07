@@ -41,6 +41,9 @@ func InitDB() error {
 	log.Println("Database connection established")
 	return nil
 }
+func GetDB() *sql.DB {
+	return DB
+}
 
 // SetupDatabase 设置数据库表结构
 func SetupDatabase() error {

@@ -6,15 +6,15 @@
       class="login-button" 
       @click="showAuthModal = true"
     >
-      <i class="icon-login"></i>
-      登录
+      <i class="bi bi-box-arrow-in-right"></i>
+      {{ $t('app.login') }}
     </button>
     
     <!-- 已登录状态 -->
     <div v-else class="avatar-container" @click="toggleDropdown">
       <img 
         :src="user?.avatar?.String || '/default-avatar.png'" 
-        alt="用户头像" 
+        :alt="$t('app.userAvatar')" 
         class="avatar"
       />
       <span class="username">{{ user?.username }}</span>
@@ -22,14 +22,14 @@
       <!-- 下拉菜单 -->
       <div v-if="showDropdown" class="dropdown-menu">
         <div class="dropdown-item" @click="navigateTo('profile')">
-          <i class="icon-user"></i>个人资料
+          <i class="bi bi-person"></i>{{ $t('app.profile') }}
         </div>
         <div class="dropdown-item" @click="navigateTo('settings')">
-          <i class="icon-settings"></i>设置
+          <i class="bi bi-gear"></i>{{ $t('app.settings') }}
         </div>
         <div class="dropdown-divider"></div>
         <div class="dropdown-item" @click="logout">
-          <i class="icon-logout"></i>退出登录
+          <i class="bi bi-box-arrow-right"></i>{{ $t('app.logout') }}
         </div>
       </div>
     </div>
@@ -63,7 +63,7 @@ export default {
   
   computed: {
     isAuthenticated() {
-      return userStore.state.isAuthenticated;
+      return userStore.isAuthenticated;
     },
     
     user() {
@@ -83,7 +83,9 @@ export default {
   methods: {
     toggleDropdown(event) {
       event.stopPropagation();
+      console.log('切换下拉菜单, 当前状态:', this.showDropdown);
       this.showDropdown = !this.showDropdown;
+      console.log('切换后下拉菜单状态:', this.showDropdown);
     },
     
     handleOutsideClick(event) {
@@ -108,12 +110,17 @@ export default {
       try {
         await userStore.logout();
       } catch (error) {
-        console.error('登出时发生错误:', error);
+        console.error(this.$t('app.logoutError'), error);
       }
     },
     
     onAuthSuccess() {
       this.showAuthModal = false;
+      
+      // 如果在模态框登录成功，跳转到首页
+      if (this.$router) {
+        this.$router.push('/');
+      }
     }
   }
 };
@@ -141,17 +148,18 @@ export default {
   background: var(--secondary-color, #66b1ff);
 }
 
-.icon-login {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z'/%3E%3C/svg%3E");
+/* Bootstrap图标样式 */
+.login-button .bi {
+  font-size: 16px;
+}
+
+.dropdown-item .bi {
+  font-size: 16px;
+  color: var(--text-secondary);
 }
 
 .avatar-container {
+  position: relative;
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -191,7 +199,10 @@ export default {
   min-width: 150px;
   border-radius: 4px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .dropdown-item {
@@ -213,28 +224,6 @@ export default {
   height: 1px;
   background: var(--border-color);
   margin: 5px 0;
-}
-
-/* 图标样式 */
-[class^="icon-"] {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-}
-
-.icon-user {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23606266' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
-}
-
-.icon-settings {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23606266' d='M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z'/%3E%3C/svg%3E");
-}
-
-.icon-logout {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23606266' d='M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z'/%3E%3C/svg%3E");
 }
 
 /* 登录模态框 */

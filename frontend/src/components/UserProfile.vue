@@ -1,137 +1,107 @@
 <template>
   <div class="user-profile">
-    <h2>用户资料</h2>
-    
     <div v-if="loading" class="loading">
-      加载中...
+      <div class="loading-spinner"></div>
     </div>
     
     <div v-else-if="error" class="error-message">
       {{ error }}
     </div>
     
-    <form v-else @submit.prevent="updateProfile" class="profile-form">
-      <div class="avatar-section">
-        <div class="avatar">
-          <img 
-            :src="form.avatar || '/default-avatar.png'" 
-            alt="用户头像" 
-          />
+    <div v-else class="profile-content">
+      <!-- 基本信息 -->
+      <div class="profile-section">
+        <div class="profile-row">
+          <div class="profile-label">{{ $t('profile.username') }}</div>
+          <div class="profile-field">
+            <input
+              type="text"
+              v-model="form.username"
+              :placeholder="$t('profile.username')"
+              class="text-input"
+            />
+          </div>
         </div>
-        <div class="avatar-upload">
-          <label for="avatar">上传头像</label>
-          <input 
-            type="file" 
-            id="avatar" 
-            accept="image/*" 
-            @change="handleAvatarUpload" 
-          />
+        
+        <div class="divider"></div>
+        
+        <div class="profile-row">
+          <div class="profile-label">{{ $t('profile.email') }}</div>
+          <div class="profile-field">
+            <input
+              type="email"
+              v-model="form.email"
+              :placeholder="$t('profile.email')"
+              disabled
+              class="text-input"
+            />
+          </div>
         </div>
       </div>
       
-      <div class="form-group">
-        <label for="username">用户名</label>
-        <input 
-          type="text" 
-          id="username" 
-          v-model="form.username" 
-          placeholder="请输入用户名"
-          required
-          minlength="3"
-          maxlength="50"
-        />
+      <!-- 修改密码 -->
+      <div class="profile-section">
+        <div class="section-title">{{ $t('profile.changePassword') }}</div>
+        
+        <div class="profile-row">
+          <div class="profile-label">{{ $t('profile.currentPassword') }}</div>
+          <div class="profile-field">
+            <input
+              type="password"
+              v-model="form.currentPassword"
+              :placeholder="$t('profile.currentPassword')"
+              class="text-input"
+            />
+          </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="profile-row">
+          <div class="profile-label">{{ $t('profile.newPassword') }}</div>
+          <div class="profile-field">
+            <input
+              type="password"
+              v-model="form.newPassword"
+              :placeholder="$t('profile.newPassword')"
+              class="text-input"
+            />
+          </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="profile-row">
+          <div class="profile-label">{{ $t('profile.confirmPassword') }}</div>
+          <div class="profile-field">
+            <input
+              type="password"
+              v-model="form.confirmPassword"
+              :placeholder="$t('profile.confirmPassword')"
+              class="text-input"
+            />
+          </div>
+        </div>
       </div>
       
-      <div class="form-group">
-        <label for="email">邮箱</label>
-        <input 
-          type="email" 
-          id="email" 
-          v-model="form.email" 
-          placeholder="未设置"
-          disabled
-        />
+      <div v-if="passwordError" class="error-panel">
+        {{ passwordError }}
       </div>
       
-      <div class="form-group">
-        <label for="phone">手机号</label>
-        <input 
-          type="tel" 
-          id="phone" 
-          v-model="form.phone" 
-          placeholder="未设置"
-          disabled
-        />
-      </div>
-      
-      <div class="form-actions">
+      <!-- 保存按钮 -->
+      <div class="profile-actions">
         <button 
-          type="submit" 
-          class="btn-primary" 
+          class="btn-primary save-btn" 
           :disabled="submitLoading"
+          @click="saveProfile"
         >
-          {{ submitLoading ? '保存中...' : '保存修改' }}
-        </button>
-        <button 
-          type="button" 
-          class="btn-secondary" 
-          @click="showPasswordModal = true"
-        >
-          修改密码
+          {{ submitLoading ? $t('profile.savingChanges') : $t('profile.saveChanges') }}
         </button>
       </div>
-    </form>
+    </div>
     
-    <!-- 修改密码的模态框 -->
-    <div v-if="showPasswordModal" class="password-modal">
-      <div class="modal-content">
-        <h3>修改密码</h3>
-        <form @submit.prevent="updatePassword">
-          <div class="form-group">
-            <label for="old-password">原密码</label>
-            <input 
-              type="password" 
-              id="old-password" 
-              v-model="passwordForm.oldPassword" 
-              placeholder="请输入原密码"
-              required
-            />
-          </div>
-          
-          <div class="form-group">
-            <label for="new-password">新密码</label>
-            <input 
-              type="password" 
-              id="new-password" 
-              v-model="passwordForm.newPassword" 
-              placeholder="请输入新密码"
-              required
-              minlength="6"
-            />
-          </div>
-          
-          <div v-if="passwordError" class="error-message">
-            {{ passwordError }}
-          </div>
-          
-          <div class="form-actions">
-            <button 
-              type="submit" 
-              class="btn-primary" 
-              :disabled="passwordLoading"
-            >
-              {{ passwordLoading ? '提交中...' : '确认修改' }}
-            </button>
-            <button 
-              type="button" 
-              class="btn-secondary" 
-              @click="showPasswordModal = false"
-            >
-              取消
-            </button>
-          </div>
-        </form>
-      </div>
+    <div v-if="successMessage" class="success-toast">
+      {{ successMessage }}
     </div>
   </div>
 </template>
@@ -146,24 +116,15 @@ export default {
     return {
       form: {
         username: '',
-        avatar: '',
         email: '',
-        phone: ''
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
       },
       loading: true,
       submitLoading: false,
       error: '',
-      
-      // 修改密码
-      showPasswordModal: false,
-      passwordForm: {
-        oldPassword: '',
-        newPassword: ''
-      },
-      passwordLoading: false,
       passwordError: '',
-      
-      // 成功消息
       successMessage: ''
     };
   },
@@ -179,83 +140,76 @@ export default {
       this.error = '';
       
       try {
-        const user = await userStore.getUserProfile();
-        this.form.username = user.username;
-        this.form.avatar = user.avatar?.String || '';
-        this.form.email = user.email?.String || '';
-        this.form.phone = user.phone?.String || '';
+        const profile = await userStore.getUserProfile();
+        this.form.username = profile.username || '';
+        this.form.email = profile.email || '';
       } catch (error) {
-        this.error = error.response?.data?.error || '获取用户资料失败';
+        this.error = error.response?.data?.error || this.$t('common.error');
       } finally {
         this.loading = false;
       }
     },
     
-    // 处理头像上传
-    handleAvatarUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+    // 保存资料
+    async saveProfile() {
+      // 验证密码
+      if (this.form.newPassword || this.form.confirmPassword || this.form.currentPassword) {
+        if (!this.form.currentPassword) {
+          this.passwordError = this.$t('profile.passwordError.empty');
+          return;
+        }
+        
+        if (this.form.newPassword !== this.form.confirmPassword) {
+          this.passwordError = this.$t('profile.passwordError.mismatch');
+          return;
+        }
+        
+        if (this.form.newPassword && this.form.newPassword.length < 6) {
+          this.passwordError = this.$t('profile.passwordError.tooShort');
+          return;
+        }
+      }
       
-      // 简单实现，实际项目中应该上传到服务器
-      // 这里仅为演示，使用本地URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.form.avatar = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    },
-    
-    // 更新用户资料
-    async updateProfile() {
       this.submitLoading = true;
+      this.passwordError = '';
       this.error = '';
       
       try {
-        await userStore.updateProfile({
-          username: this.form.username,
-          avatar: this.form.avatar
-        });
+        const profileData = {
+          username: this.form.username
+        };
         
-        this.successMessage = '资料更新成功';
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 3000);
+        // 如果要更改密码
+        if (this.form.newPassword && this.form.currentPassword) {
+          profileData.current_password = this.form.currentPassword;
+          profileData.new_password = this.form.newPassword;
+        }
+        
+        await userStore.updateProfile(profileData);
+        
+        // 清空密码字段
+        this.form.currentPassword = '';
+        this.form.newPassword = '';
+        this.form.confirmPassword = '';
+        
+        this.showSuccessMessage(this.$t('profile.profileSaved'));
       } catch (error) {
-        this.error = error.response?.data?.error || '更新资料失败';
+        if (error.response?.data?.error?.includes('password')) {
+          this.passwordError = error.response.data.error || this.$t('common.error');
+        } else {
+          this.error = error.response?.data?.error || this.$t('common.error');
+        }
       } finally {
         this.submitLoading = false;
       }
     },
     
-    // 更新密码
-    async updatePassword() {
-      this.passwordLoading = true;
-      this.passwordError = '';
-      
-      try {
-        await userStore.updatePassword({
-          old_password: this.passwordForm.oldPassword,
-          new_password: this.passwordForm.newPassword
-        });
-        
-        // 密码修改成功，关闭模态框
-        this.showPasswordModal = false;
-        
-        // 重置表单
-        this.passwordForm = {
-          oldPassword: '',
-          newPassword: ''
-        };
-        
-        this.successMessage = '密码修改成功';
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 3000);
-      } catch (error) {
-        this.passwordError = error.response?.data?.error || '修改密码失败';
-      } finally {
-        this.passwordLoading = false;
-      }
+    // 显示成功消息
+    showSuccessMessage(message) {
+      this.successMessage = message;
+      setTimeout(() => {
+        this.successMessage = '';
+      }, 3000);
     }
   }
 };
@@ -263,156 +217,150 @@ export default {
 
 <style scoped>
 .user-profile {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-h2 {
-  text-align: center;
-  margin-bottom: 30px;
-  color: var(--text-color);
-}
-
-.loading, .error-message {
-  text-align: center;
-  padding: 20px;
+  width: 100%;
+  padding: 0;
+  overflow-y: auto;
+  position: relative;
 }
 
 .loading {
-  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.loading-spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .error-message {
+  padding: 16px;
   color: #f56c6c;
-}
-
-.profile-form {
-  background-color: var(--card-bg);
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.avatar-section {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  overflow: hidden;
-  margin-right: 20px;
-}
-
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-upload input {
-  display: none;
-}
-
-.avatar-upload label {
-  display: inline-block;
-  padding: 6px 12px;
-  background: #409eff;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--text-color);
-}
-
-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--input-bg);
-  color: var(--text-color);
-}
-
-input:disabled {
-  background-color: rgba(0, 0, 0, 0.05);
-  cursor: not-allowed;
-}
-
-.form-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.btn-primary, .btn-secondary {
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  border: none;
-}
-
-.btn-primary {
-  background: #409eff;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #66b1ff;
-}
-
-.btn-primary:disabled {
-  background: #a0cfff;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: #f4f4f5;
-  color: #606266;
-}
-
-.btn-secondary:hover {
-  background: #e9e9eb;
-}
-
-/* 密码修改模态框 */
-.password-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--card-bg);
-  padding: 20px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
-}
-
-.modal-content h3 {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  padding: 0 20px;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+}
+
+.profile-label {
+  font-weight: 500;
   color: var(--text-color);
+}
+
+.profile-field {
+  width: 60%;
+}
+
+.text-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--chat-bg);
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.text-input:disabled {
+  opacity: 0.7;
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 0;
+}
+
+.error-panel {
+  background-color: rgba(245, 108, 108, 0.1);
+  color: #f56c6c;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin: 0 20px;
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 24px;
+}
+
+.save-btn {
+  min-width: 120px;
+  padding: 10px 20px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.save-btn:hover {
+  background-color: var(--secondary-color);
+}
+
+.save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.success-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  background-color: #67c23a;
+  color: white;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 1000;
+  animation: fadeOut 3s forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 </style> 

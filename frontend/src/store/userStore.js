@@ -59,8 +59,10 @@ const actions = {
       return user;
     } catch (error) {
       state.error = error.response?.data?.error || '登录失败';
+      console.error('登录失败:', error);
       throw error;
     } finally {
+      console.log('登录结束');
       state.loading = false;
     }
   },
@@ -182,5 +184,12 @@ initializeStore();
 // 导出只读状态和操作方法
 export default {
   state: readonly(state),
-  ...actions
+  ...actions,
+  // 添加直接访问属性
+  get isAuthenticated() {
+    return state.isAuthenticated;
+  },
+  get user() {
+    return state.user;
+  }
 }; 

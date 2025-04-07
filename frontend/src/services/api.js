@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:8080/api';
+import { API_URL } from '../config';
 
 // 创建axios实例
 const apiClient = axios.create({
@@ -19,25 +18,37 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
 );
-
-// 响应拦截器，处理认证错误
+// 响应拦截器，统一处理错误
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
+    // 处理网络错误
+     // 忽略错误，将response原样返回给上层处理
+     if (error.response) {
+       // 如果服务器返回了响应，直接返回响应对象
+       return error.response;
+     } 
+     return  
   }
 );
+
+// 响应拦截器，处理认证错误
+// apiClient.interceptors.response.use(
+//   (response) => {
+//     return response;
+//   },
+//   (error) => {
+//     if (error.response && error.response.status === 401) {
+//       localStorage.removeItem('token');
+//       localStorage.removeItem('user');
+//       window.location.href = '/login';
+//     }
+//     return Promise.reject(error);
+//   }
+// );
 
 // 用户认证相关API
 export const authAPI = {

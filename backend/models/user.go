@@ -38,6 +38,8 @@ type UserSettings struct {
 	Theme               string    `json:"theme"`
 	Language            string    `json:"language"`
 	NotificationEnabled int       `json:"notification_enabled"`
+	Prompt              string    `json:"prompt"`
+	Rules               string    `json:"rules"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
@@ -81,4 +83,6 @@ type UpdateSettingsRequest struct {
 	Theme               string `json:"theme" binding:"omitempty,oneof=dark light"`
 	Language            string `json:"language" binding:"omitempty"`
 	NotificationEnabled bool   `json:"notification_enabled"`
+	Prompt              string `json:"prompt" binding:"omitempty"`
+	Rules               string `json:"rules" binding:"omitempty"`
 }

@@ -1,85 +1,60 @@
 <template>
-  <div class="app-container">
-    <header class="header">
-      <div class="logo-container">
-        <img src="./assets/logo.svg" alt="DeepSeek Logo" class="logo" />
-        <h1>DeepSeek AI 聊天</h1>
-      </div>
-      <div class="header-right">
-        <ThemeToggle />
-        <UserMenu @navigate="handleNavigation" />
-      </div>
-    </header>
-    
-    <!-- 主要内容区域 -->
-    <component 
-      :is="currentComponent" 
-      v-if="currentComponent !== 'ChatInterface'"
-      @back="showChatInterface"
-    />
-    <ChatInterface v-else />
-  </div>
+  <router-view />
 </template>
-
-<script>
-import ChatInterface from './components/ChatInterface.vue'
-import ThemeToggle from './components/ThemeToggle.vue'
-import UserMenu from './components/UserMenu.vue'
-import UserProfile from './components/UserProfile.vue'
-import UserSettings from './components/UserSettings.vue'
-
-export default {
-  name: 'App',
-  components: {
-    ChatInterface,
-    ThemeToggle,
-    UserMenu,
-    UserProfile,
-    UserSettings
-  },
-  
-  data() {
-    return {
-      currentComponent: 'ChatInterface'
-    };
-  },
-  
-  methods: {
-    handleNavigation(page) {
-      switch (page) {
-        case 'profile':
-          this.currentComponent = 'UserProfile';
-          break;
-        case 'settings':
-          this.currentComponent = 'UserSettings';
-          break;
-        default:
-          this.currentComponent = 'ChatInterface';
-      }
-    },
-    
-    showChatInterface() {
-      this.currentComponent = 'ChatInterface';
-    }
-  }
-}
-</script>
 
 <style>
 :root {
-  --text-color: #2c3e50;
-  --bg-color: #f5f7fa;
-  --card-bg: #ffffff;
-  --border-color: #dcdfe6;
-  --input-bg: #ffffff;
+  /* 暗色主题变量 */
+  --dark-primary-color: #1d9bf0;
+  --dark-secondary-color: #0f7ae5;
+  --dark-background-color: #0f1419;
+  --dark-chat-bg: #16181c;
+  --dark-user-message-bg: #1d9bf0;
+  --dark-ai-message-bg: #2c2c2c;
+  --dark-border-color: #38444d;
+  --dark-text-color: #e7e9ea;
+  --dark-text-secondary: #8b98a5;
+  --dark-card-bg: #16181c;
+
+  /* 亮色主题变量 */
+  --light-primary-color: #1d9bf0;
+  --light-secondary-color: #0f7ae5;
+  --light-background-color: #f7f9fa;
+  --light-chat-bg: #ffffff;
+  --light-user-message-bg: #1d9bf0;
+  --light-ai-message-bg: #f0f2f5;
+  --light-border-color: #e1e8ed;
+  --light-text-color: #14171a;
+  --light-text-secondary: #657786;
+  --light-card-bg: #ffffff;
+
+  /* 默认使用亮色主题 */
+  --primary-color: var(--light-primary-color);
+  --secondary-color: var(--light-secondary-color);
+  --background-color: var(--light-background-color);
+  --chat-bg: var(--light-chat-bg);
+  --user-message-bg: var(--light-user-message-bg);
+  --ai-message-bg: var(--light-ai-message-bg);
+  --border-color: var(--light-border-color);
+  --text-color: var(--light-text-color);
+  --text-secondary: var(--light-text-secondary);
+  --card-bg: var(--light-card-bg);
+  
+  --font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* 暗色主题样式 */
 [data-theme="dark"] {
-  --text-color: #e5eaf3;
-  --bg-color: #1a1a1a;
-  --card-bg: #252525;
-  --border-color: #444444;
-  --input-bg: #333333;
+  --primary-color: var(--dark-primary-color);
+  --secondary-color: var(--dark-secondary-color);
+  --background-color: var(--dark-background-color);
+  --chat-bg: var(--dark-chat-bg);
+  --user-message-bg: var(--dark-user-message-bg);
+  --ai-message-bg: var(--dark-ai-message-bg);
+  --border-color: var(--dark-border-color);
+  --text-color: var(--dark-text-color);
+  --text-secondary: var(--dark-text-secondary);
+  --card-bg: var(--dark-card-bg);
 }
 
 * {
@@ -88,57 +63,78 @@ export default {
   padding: 0;
 }
 
-html, body {
-  height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  background-color: var(--background-color);
   color: var(--text-color);
-  background-color: var(--bg-color);
-  transition: background-color 0.3s, color 0.3s;
+  width: 100%;
+  height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
 }
 
 #app {
-  height: 100%;
-}
-
-.app-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.header {
+.app-container {
+  height: 100vh;
+  width: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 10px 20px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.logo-container {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo {
-  height: 32px;
-  width: auto;
-}
-
-.header h1 {
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--background-color);
   color: var(--text-color);
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+button {
+  cursor: pointer;
+}
+
+/* 通用样式 */
+.btn-primary {
+  width: 100%;
+  height: 40px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--secondary-color);
+}
+
+.btn-primary:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.field-error {
+  color: #e74c3c;
+  font-size: 12px;
+  margin-top: 5px;
 }
 </style> 

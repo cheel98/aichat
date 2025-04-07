@@ -11,10 +11,6 @@
 *.out
 /backend/go.work
 
-# Golang环境和配置
-.env
-backend/config.yml
-
 # 前端忽略项
 /frontend/node_modules/
 /frontend/dist/

@@ -1,0 +1,113 @@
+export default {
+  app: {
+    title: 'DeepSeek AI 聊天',
+    newChat: '新建聊天',
+    settings: '设置',
+    profile: '个人资料',
+    logout: '退出登录',
+    login: '登录',
+    userAvatar: '用户头像',
+    logoutError: '登出时发生错误:'
+  },
+  chat: {
+    placeholder: '输入消息...',
+    send: '发送',
+    regenerate: '重新生成',
+    thinking: '思考中...',
+    copy: '复制',
+    saveToHistory: '保存到历史记录',
+    errorMessage: '抱歉，发生了错误，请重试。',
+    welcome: '欢迎使用 DeepSeek AI 聊天',
+    welcomeDesc: '开始与AI对话，DeepSeek将为您提供智能、有趣的回答',
+    me: '我',
+    enterHint: '按 Enter 发送，Shift+Enter 换行',
+    exampleQuestions: [
+      '介绍一下量子计算的基本原理',
+      '帮我写一篇关于人工智能的短文',
+      '如何提高编程效率？'
+    ],
+    markdownError: 'Markdown解析错误:',
+    streamError: '流式响应出错:',
+    loadHistoryError: '获取对话历史失败',
+    loadHistoryErrorLog: '加载对话历史出错:'
+  },
+  settings: {
+    title: '设置',
+    appearance: '外观',
+    theme: '主题',
+    lightTheme: '浅色',
+    darkTheme: '深色', 
+    language: '语言',
+    notifications: '通知',
+    enableNotifications: '启用通知',
+    promptSettings: '提示词设置',
+    promptText: '提示词',
+    promptPlaceholder: '请输入提示词，用于指导AI响应的行为...',
+    rulesSettings: '规则设置',
+    rulesText: '规则',
+    rulesPlaceholder: '请输入AI需要遵循的规则...',
+    saveSettings: '保存设置',
+    savingSettings: '保存中...',
+    settingsSaved: '设置已保存'
+  },
+  profile: {
+    title: '个人资料',
+    username: '用户名',
+    email: '邮箱',
+    changePassword: '修改密码',
+    currentPassword: '当前密码',
+    newPassword: '新密码',
+    confirmPassword: '确认密码',
+    saveChanges: '保存更改',
+    savingChanges: '保存中...',
+    profileSaved: '资料更新成功',
+    passwordError: {
+      empty: '请输入当前密码',
+      mismatch: '两次输入的新密码不一致',
+      tooShort: '密码长度不能少于6个字符'
+    }
+  },
+  history: {
+    title: '历史对话',
+    empty: '暂无历史对话',
+    newChat: '新对话',
+    searchPlaceholder: '搜索对话...',
+    deleteConfirm: '确定要删除此对话吗？',
+    unnamed: '未命名对话',
+    fetchError: '获取历史对话失败',
+    fetchErrorLog: '获取历史对话出错:',
+    deleteError: '删除会话失败',
+    deleteErrorLog: '删除会话出错:'
+  },
+  auth: {
+    welcome: '欢迎使用 AI 聊天',
+    login: '登录',
+    register: '注册',
+    account: '账号',
+    accountPlaceholder: '邮箱 / 手机号',
+    password: '密码',
+    passwordPlaceholder: '请输入密码',
+    loggingIn: '登录中...',
+    noAccount: '没有账号？立即注册',
+    forgotPassword: '忘记密码？',
+    username: '用户名',
+    usernamePlaceholder: '请设置用户名',
+    contact: '联系方式',
+    contactPlaceholder: '邮箱或手机号',
+    setPasswordPlaceholder: '请设置密码',
+    confirmPassword: '确认密码',
+    confirmPasswordPlaceholder: '请再次输入密码',
+    registering: '注册中...',
+    hasAccount: '已有账号？立即登录'
+  },
+  common: {
+    loading: '加载中',
+    error: '出错了',
+    retry: '重试',
+    cancel: '取消',
+    confirm: '确认',
+    delete: '删除',
+    edit: '编辑',
+    save: '保存'
+  }
+} 

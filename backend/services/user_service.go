@@ -301,7 +301,8 @@ func GetUserSettings(userID uint64) (*models.UserSettings, error) {
 		userID,
 	).Scan(
 		&settings.ID, &settings.UserID, &settings.Theme, &settings.Language,
-		&settings.NotificationEnabled, &settings.CreatedAt, &settings.UpdatedAt,
+		&settings.NotificationEnabled, &settings.Prompt, &settings.Rules,
+		&settings.CreatedAt, &settings.UpdatedAt,
 	)
 
 	if err != nil {
@@ -346,6 +347,17 @@ func UpdateUserSettings(userID uint64, req models.UpdateSettingsRequest) error {
 	}
 	query += ", notification_enabled = ?"
 	params = append(params, notificationEnabled)
+
+	// 添加对prompt和rules字段的处理
+	if req.Prompt != "" {
+		query += ", prompt = ?"
+		params = append(params, req.Prompt)
+	}
+
+	if req.Rules != "" {
+		query += ", rules = ?"
+		params = append(params, req.Rules)
+	}
 
 	query += " WHERE user_id = ?"
 	params = append(params, userID)

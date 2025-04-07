@@ -9,12 +9,12 @@
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-        <h2>欢迎使用 DeepSeek AI 聊天</h2>
-        <p>开始与AI对话，DeepSeek将为您提供智能、有趣的回答</p>
+        <h2>{{ $t('chat.welcome') }}</h2>
+        <p>{{ $t('chat.welcomeDesc') }}</p>
         <div class="example-questions">
-          <button @click="useExampleQuestion('介绍一下量子计算的基本原理')" class="example-btn">介绍一下量子计算的基本原理</button>
-          <button @click="useExampleQuestion('帮我写一篇关于人工智能的短文')" class="example-btn">帮我写一篇关于人工智能的短文</button>
-          <button @click="useExampleQuestion('如何提高编程效率？')" class="example-btn">如何提高编程效率？</button>
+          <button @click="useExampleQuestion($t('chat.exampleQuestions.0'))" class="example-btn">{{ $t('chat.exampleQuestions.0') }}</button>
+          <button @click="useExampleQuestion($t('chat.exampleQuestions.1'))" class="example-btn">{{ $t('chat.exampleQuestions.1') }}</button>
+          <button @click="useExampleQuestion($t('chat.exampleQuestions.2'))" class="example-btn">{{ $t('chat.exampleQuestions.2') }}</button>
         </div>
       </div>
       <div class="messages-list" v-if="messages.length > 0">
@@ -24,15 +24,16 @@
           :class="['message-wrapper', message.role === 'user' ? 'user-wrapper' : 'ai-wrapper']"
         >
           <div class="message-avatar">
-            <div v-if="message.role === 'user'" class="user-avatar">
-              <span>我</span>
+            <div v-if="message.role === 'user'" class="display-none">
+              <!-- <span>{{ $t('chat.me') }}</span> -->
             </div>
             <div v-else class="ai-avatar">
               <span>AI</span>
             </div>
           </div>
           <div :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']">
-            <p>{{ message.content }}</p>
+            <div v-if="message.role === 'user'">{{ message.content }}</div>
+            <div v-else v-html="renderMarkdown(message.content)" class="markdown-content"></div>
           </div>
         </div>
         <div v-if="loading" class="message-wrapper ai-wrapper">
@@ -55,9 +56,8 @@
       <div class="chat-input">
         <textarea 
           v-model="inputMessage" 
-          @keyup.enter.ctrl="sendMessage"
-          @keyup.enter.meta="sendMessage"
-          placeholder="输入消息，按 Ctrl+Enter 发送"
+          @keydown="handleKeyDown"
+          :placeholder="$t('chat.placeholder')"
           :disabled="loading"
           rows="1"
           ref="messageInput"
@@ -76,33 +76,77 @@
         </button>
       </div>
       <div class="input-info">
-        按 <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 发送
+        {{ $t('chat.enterHint') }}
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios'
+import { marked } from 'marked'
+import { API_BASE_URL } from '../config'
+import apiClient from '../services/api'
+import { ElMessage } from 'element-plus'
 
 export default {
   name: 'ChatInterface',
+  
+  props: {
+    conversationId: {
+      type: String,
+      default: null
+    }
+  },
   
   data() {
     return {
       inputMessage: '',
       messages: [],
       loading: false,
-      exampleQuestions: [
-        '介绍一下量子计算的基本原理',
-        '帮我写一篇关于人工智能的短文',
-        '如何提高编程效率？'
-      ]
+      currentConversationId: null
+    }
+  },
+  
+  watch: {
+    conversationId: {
+      immediate: true,
+      handler(newId) {
+        if (newId) {
+          this.loadConversation(newId);
+        }
+      }
+    },
+    
+    messages() {
+      this.scrollToBottom();
     }
   },
   
   methods: {
-    sendMessage() {
+    renderMarkdown(content) {
+      try {
+        return marked(content, { breaks: true, gfm: true })
+      } catch (error) {
+        console.error(this.$t('chat.markdownError'), error)
+        return content
+      }
+    },
+    
+    handleKeyDown(event) {
+      // Enter键发送消息，Shift+Enter添加换行符
+      if (event.key === 'Enter') {
+        if (event.shiftKey) {
+          // Shift+Enter换行
+          return
+        } else {
+          // Enter键发送消息
+          event.preventDefault()
+          this.sendMessage()
+        }
+      }
+    },
+    
+    async sendMessage() {
       if (!this.inputMessage.trim() || this.loading) {
         return
       }
@@ -114,33 +158,90 @@ export default {
       })
       
       this.loading = true
+
+      // 添加一个空的AI回复消息，用于流式更新
+      const aiMessageIndex = this.messages.length
       
-      // 发送消息到后端
-      axios.post('http://localhost:8080/api/chat', {
-        message: this.inputMessage
+      let msg = {
+        message: this.inputMessage,
+        conversation_id: this.currentConversationId
+      }
+
+      // 保存用户输入，然后清空输入框
+      const userInput = this.inputMessage
+      
+      // // 根据界面选择的语言添加提示词告知AI以什么语言回复
+      // if (this.$i18n.state.currentLanguage === 'zh-CN') {
+      //   msg.message = "请用中文回复以下内容：" + msg.message;
+      // } else if (this.$i18n.state.currentLanguage === 'en-US') {
+      //   msg.message = "Please reply in English to the following: " + msg.message;
+      // }
+      this.inputMessage = ''
+      this.scrollToBottom()
+      this.$nextTick(() => {
+        this.autoResize()
       })
-        .then(response => {
-          // 添加AI回复
-          this.messages.push({
+      
+      // 准备API请求URL
+      let apiUrl;
+      if (this.currentConversationId) {
+        // 如果已有会话ID，使用现有会话
+        apiUrl = `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}`;
+      } else {
+        // 如果是新会话，先创建会话
+        const sessionRes = await apiClient.post('/chat/sessions', {
+          title: userInput.length > 30 ? userInput.substring(0, 30) + '...' : userInput
+        });
+        if (sessionRes.status !== 201) {
+          ElMessage.error(sessionRes.statusText);
+          this.messages[aiMessageIndex] = {
             role: 'ai',
-            content: response.data.reply
-          })
-        })
-        .catch(error => {
-          console.error('发送消息出错:', error)
-          this.messages.push({
-            role: 'ai',
-            content: '抱歉，发生了错误，请重试。'
-          })
-        })
-        .finally(() => {
-          this.loading = false
-          this.inputMessage = ''
-          this.scrollToBottom()
-          this.$nextTick(() => {
-            this.autoResize()
-          })
-        })
+            content: sessionRes.statusText
+          };
+          this.loading = false;
+          return;
+        }
+        console.log(sessionRes.data)
+        
+        const sessionData = sessionRes.data;
+        this.currentConversationId = sessionData.session_id;
+        apiUrl = `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}`;
+        
+        // 更新URL以包含会话ID
+        this.updateUrlWithSessionId();
+      }
+      
+      try {
+        console.log(apiUrl)
+        const response = await apiClient.post(apiUrl, {
+          content: msg.message
+        }, {
+          responseType: 'stream',
+          onDownloadProgress: (progressEvent) => {
+            const chunk = progressEvent.event.target.response;
+            if (chunk) {
+              this.loading = false;
+              // 更新AI回复消息
+              this.messages[aiMessageIndex] = {
+                role: 'ai',
+                content: chunk
+              };
+              
+              // 滚动到底部
+              this.scrollToBottom();
+            }
+          }
+        });
+        // 流式传输完成，保存对话
+        this.saveConversation();
+      } catch (error) {
+        console.error(this.$t('chat.streamError'), error);
+        this.messages[aiMessageIndex] = {
+          role: 'ai',
+          content: this.$t('chat.errorMessage')
+        };
+        this.loading = false;
+      }
     },
     
     scrollToBottom() {
@@ -165,12 +266,103 @@ export default {
       textarea.style.height = 'auto'
       const newHeight = Math.min(textarea.scrollHeight, 120)
       textarea.style.height = newHeight + 'px'
-    }
-  },
-  
-  watch: {
-    messages() {
-      this.scrollToBottom()
+    },
+    
+    // 加载特定对话的消息历史
+    async loadConversation(conversationId) {
+      this.clearMessages();
+      this.loading = true;
+      
+      try {
+        const response = await apiClient.get(`/chat/sessions/${conversationId}`);
+        if (response.status !== 200) {
+          throw new Error(this.$t('chat.loadHistoryError'));
+        }
+        
+        const data = response.data;
+        if (data.messages && Array.isArray(data.messages)) {
+          this.messages = data.messages;
+          this.currentConversationId = conversationId;
+        }
+      } catch (error) {
+        console.error(this.$t('chat.loadHistoryErrorLog'), error);
+      } finally {
+        this.loading = false;
+        this.scrollToBottom();
+      }
+    },
+    
+    // 清空消息
+    clearMessages() {
+      this.messages = [];
+      this.currentConversationId = null;
+    },
+    
+    // 保存对话
+    async saveConversation() {
+      // 如果消息为空，不保存
+      if (this.messages.length === 0) return;
+      
+      try {
+        // 获取第一条消息作为对话标题
+        const firstUserMessage = this.messages.find(m => m.role === 'user');
+        const title = firstUserMessage ? 
+          (firstUserMessage.content.length > 30 ? 
+            firstUserMessage.content.substring(0, 30) + '...' : 
+            firstUserMessage.content) : 
+          '未命名对话';
+        
+        const conversationData = {
+          id: this.currentConversationId,
+          title: title,
+          messages: this.messages
+        };
+        
+        // 根据是否有ID决定创建新对话还是更新现有对话
+        const method = this.currentConversationId ? 'PUT' : 'POST';
+        const url = this.currentConversationId ? 
+          `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}` : 
+          `${API_BASE_URL}/api/chat/sessions`;
+        let response;
+        if (method === 'PUT') {
+          response = await apiClient.put(url, conversationData);
+        } else {
+          response = await apiClient.post(url, conversationData);
+        }
+        
+        if (response.status !== 200) {
+          throw new Error('保存对话失败');
+        }
+        
+        // 如果是新创建的对话，获取返回的ID
+        if (!this.currentConversationId) {
+          const data = await response.json();
+          this.currentConversationId = data.session_id;
+          
+          // 更新URL以包含会话ID
+          this.updateUrlWithSessionId();
+        }
+        
+        // 通知父组件对话已更新
+        this.$emit('conversation-updated');
+        
+      } catch (error) {
+        console.error('保存对话出错:', error);
+        ElMessage.error(this.$t('chat.saveError') || '保存对话失败');
+      }
+    },
+    
+    // 更新URL以包含会话ID
+    updateUrlWithSessionId() {
+      if (this.$router && this.currentConversationId) {
+        const currentRoute = this.$router.currentRoute.value;
+        if (currentRoute.path === '/chat' || currentRoute.path === '/') {
+          this.$router.replace({
+            path: '/',
+            query: { id: this.currentConversationId }
+          });
+        }
+      }
     }
   },
 
@@ -463,5 +655,95 @@ kbd {
   font-size: 0.8rem;
   font-family: monospace;
   transition: background-color 0.3s;
+}
+
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.markdown-content :deep(p) {
+  margin-bottom: 0.75em;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.markdown-content :deep(code) {
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+}
+
+.markdown-content :deep(pre) {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 1em;
+  border-radius: 5px;
+  overflow-x: auto;
+  margin: 0.75em 0;
+}
+
+.markdown-content :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  white-space: pre;
+  word-break: normal;
+}
+
+.markdown-content :deep(blockquote) {
+  border-left: 3px solid var(--border-color);
+  padding-left: 1em;
+  margin-left: 0;
+  margin-right: 0;
+  color: var(--text-secondary);
+}
+
+.markdown-content :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  text-align: left;
+}
+
+.markdown-content :deep(th) {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+.markdown-content :deep(a) {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.markdown-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-content :deep(img) {
+  max-width: 100%;
+  border-radius: 5px;
 }
 </style> 

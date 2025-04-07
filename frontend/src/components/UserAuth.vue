@@ -3,7 +3,7 @@
     <div class="auth-container">
       <div class="auth-header">
         <img src="/logo.png" alt="Logo" class="logo">
-        <h1>欢迎使用 AI 聊天</h1>
+        <h1>{{ $t('auth.welcome') }}</h1>
       </div>
       
       <!-- 标签切换 -->
@@ -13,42 +13,42 @@
           :class="{ active: activeTab === 'login' }" 
           @click="activeTab = 'login'"
         >
-          登录
+          {{ $t('auth.login') }}
         </div>
         <div 
           class="tab" 
           :class="{ active: activeTab === 'register' }" 
           @click="activeTab = 'register'"
         >
-          注册
+          {{ $t('auth.register') }}
         </div>
       </div>
       
       <!-- 登录表单 -->
       <form v-if="activeTab === 'login'" @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">
-          <label for="account">账号</label>
+          <label for="account">{{ $t('auth.account') }}</label>
           <div class="input-container">
-            <i class="icon-user"></i>
+            <i class="bi bi-person"></i>
             <input 
               type="text" 
               id="account" 
               v-model="loginForm.account" 
-              placeholder="邮箱 / 手机号"
+              :placeholder="$t('auth.accountPlaceholder')"
               required
             />
           </div>
         </div>
         
         <div class="form-group">
-          <label for="password">密码</label>
+          <label for="password">{{ $t('auth.password') }}</label>
           <div class="input-container">
-            <i class="icon-lock"></i>
+            <i class="bi bi-lock"></i>
             <input 
               type="password" 
               id="password" 
               v-model="loginForm.password" 
-              placeholder="请输入密码"
+              :placeholder="$t('auth.passwordPlaceholder')"
               required
             />
           </div>
@@ -58,12 +58,12 @@
         
         <div class="form-actions">
           <button type="submit" class="btn-primary" :disabled="loginLoading">
-            {{ loginLoading ? '登录中...' : '登录' }}
+            {{ loginLoading ? $t('auth.loggingIn') : $t('auth.login') }}
           </button>
           
           <div class="additional-links">
-            <a href="#" @click.prevent="activeTab = 'register'">没有账号？立即注册</a>
-            <a href="#" @click.prevent="forgotPassword">忘记密码？</a>
+            <a href="#" @click.prevent="activeTab = 'register'">{{ $t('auth.noAccount') }}</a>
+            <a href="#" @click.prevent="forgotPassword">{{ $t('auth.forgotPassword') }}</a>
           </div>
         </div>
       </form>
@@ -71,14 +71,14 @@
       <!-- 注册表单 -->
       <form v-else @submit.prevent="handleRegister" class="auth-form">
         <div class="form-group">
-          <label for="username">用户名</label>
+          <label for="username">{{ $t('auth.username') }}</label>
           <div class="input-container">
-            <i class="icon-user"></i>
+            <i class="bi bi-person"></i>
             <input 
               type="text" 
               id="username" 
               v-model="registerForm.username" 
-              placeholder="请设置用户名"
+              :placeholder="$t('auth.usernamePlaceholder')"
               required
               minlength="3"
               maxlength="50"
@@ -87,14 +87,14 @@
         </div>
         
         <div class="form-group">
-          <label for="contact">联系方式</label>
+          <label for="contact">{{ $t('auth.contact') }}</label>
           <div class="input-container">
-            <i class="icon-contact"></i>
+            <i class="bi bi-envelope"></i>
             <input 
               type="text" 
               id="contact" 
               v-model="registerForm.contact" 
-              placeholder="邮箱或手机号"
+              :placeholder="$t('auth.contactPlaceholder')"
               required
               @input="detectContactType"
             />
@@ -102,14 +102,14 @@
         </div>
         
         <div class="form-group">
-          <label for="reg-password">密码</label>
+          <label for="reg-password">{{ $t('auth.password') }}</label>
           <div class="input-container">
-            <i class="icon-lock"></i>
+            <i class="bi bi-lock"></i>
             <input 
               type="password" 
               id="reg-password" 
               v-model="registerForm.password" 
-              placeholder="请设置密码"
+              :placeholder="$t('auth.setPasswordPlaceholder')"
               required
               minlength="6"
             />
@@ -117,14 +117,14 @@
         </div>
         
         <div class="form-group">
-          <label for="confirm-password">确认密码</label>
+          <label for="confirm-password">{{ $t('auth.confirmPassword') }}</label>
           <div class="input-container">
-            <i class="icon-lock"></i>
+            <i class="bi bi-lock"></i>
             <input 
               type="password" 
               id="confirm-password" 
               v-model="registerForm.confirmPassword" 
-              placeholder="请再次输入密码"
+              :placeholder="$t('auth.confirmPasswordPlaceholder')"
               required
               minlength="6"
             />
@@ -138,11 +138,11 @@
         
         <div class="form-actions">
           <button type="submit" class="btn-primary" :disabled="registerLoading || !passwordsMatch">
-            {{ registerLoading ? '注册中...' : '注册' }}
+            {{ registerLoading ? $t('auth.registering') : $t('auth.register') }}
           </button>
           
           <div class="additional-links">
-            <a href="#" @click.prevent="activeTab = 'login'">已有账号？立即登录</a>
+            <a href="#" @click.prevent="activeTab = 'login'">{{ $t('auth.hasAccount') }}</a>
           </div>
         </div>
       </form>
@@ -230,9 +230,17 @@ export default {
       this.loginForm.login_type = emailRegex.test(this.loginForm.account) ? 1 : 2;
       
       try {
-        await userStore.login(this.loginForm);
+        console.log('登录提交:', this.loginForm);
+        const user = await userStore.login(this.loginForm);
+        console.log('登录成功，用户信息:', user);
         this.$emit('auth-success');
+        
+        // 获取重定向地址或默认跳转到首页
+        const redirectPath = this.$route.query.redirect || '/';
+        console.log('即将跳转到:', redirectPath);
+        this.$router.push(redirectPath);
       } catch (error) {
+        console.error('登录失败:', error);
         this.loginError = error.response?.data?.error || '登录失败，请检查账号和密码';
       } finally {
         this.loginLoading = false;
@@ -471,25 +479,9 @@ label {
   text-decoration: underline;
 }
 
-/* 图标样式 */
-[class^="icon-"] {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-}
-
-.icon-user {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23909399' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
-}
-
-.icon-lock {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23909399' d='M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z'/%3E%3C/svg%3E");
-}
-
-.icon-contact {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23909399' d='M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z'/%3E%3C/svg%3E");
+/* 自定义样式 */
+.bi {
+  font-size: 18px;
+  color: var(--text-secondary);
 }
 </style> 

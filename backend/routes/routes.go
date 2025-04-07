@@ -20,13 +20,6 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			auth.POST("/register", handlers.RegisterHandler)
 			auth.POST("/login", handlers.LoginHandler)
-			auth.POST("/logout", handlers.LogoutHandler)
-		}
-
-		// 聊天相关的无需认证路由
-		chat := public.Group("/chat")
-		{
-			chat.POST("/", handlers.ChatHandler) // 这个是之前的临时路由，用于兼容之前的前端
 		}
 	}
 
@@ -42,19 +35,17 @@ func SetupRoutes(r *gin.Engine) {
 			user.PUT("/password", handlers.UpdatePasswordHandler)
 			user.GET("/settings", handlers.GetUserSettingsHandler)
 			user.PUT("/settings", handlers.UpdateUserSettingsHandler)
+			user.POST("/logout", handlers.LogoutHandler)
 		}
-
-		// 聊天相关的需要认证路由
-		// chat := private.Group("/chat")
+		// 聊天相关的需认证路由
+		chat := private.Group("/chat")
 		{
-			// 这些路由需要实现对应的handler
-			// chat.POST("/sessions", handlers.CreateSessionHandler)
-			// chat.GET("/sessions", handlers.GetSessionsHandler)
-			// chat.GET("/sessions/:id", handlers.GetSessionHandler)
-			// chat.PUT("/sessions/:id", handlers.UpdateSessionHandler)
-			// chat.DELETE("/sessions/:id", handlers.DeleteSessionHandler)
-			// chat.POST("/sessions/:id/messages", handlers.SendMessageHandler)
-			// chat.GET("/sessions/:id/messages", handlers.GetMessagesHandler)
+			chat.POST("/sessions", handlers.CreateSessionHandler)       // 创建会话
+			chat.GET("/sessions", handlers.GetSessionsHandler)          // 获取会话列表
+			chat.GET("/sessions/:id", handlers.GetSessionHandler)       // 获取会话详情
+			chat.PUT("/sessions/:id", handlers.UpdateSessionHandler)    // 更新会话
+			chat.DELETE("/sessions/:id", handlers.DeleteSessionHandler) // 删除会话
+			chat.POST("/sessions/:id", handlers.SendMessageHandler)     // 发送消息（流式返回）
 		}
 	}
 }

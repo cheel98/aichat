@@ -1,61 +1,98 @@
 <template>
   <div class="user-settings">
-    <h2>用户设置</h2>
-    
     <div v-if="loading" class="loading">
-      加载中...
+      <div class="loading-spinner"></div>
     </div>
     
     <div v-else-if="error" class="error-message">
       {{ error }}
     </div>
     
-    <form v-else @submit.prevent="saveSettings" class="settings-form">
-      <div class="form-group">
-        <label for="theme">主题</label>
-        <select id="theme" v-model="form.theme">
-          <option value="light">浅色</option>
-          <option value="dark">深色</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="language">语言</label>
-        <select id="language" v-model="form.language">
-          <option value="zh-CN">简体中文</option>
-          <option value="en-US">English</option>
-        </select>
-      </div>
-      
-      <div class="form-group checkbox-group">
-        <label class="checkbox-label">
-          <input 
-            type="checkbox" 
-            v-model="form.notificationEnabled" 
-          />
-          启用通知
-        </label>
-      </div>
-      
-      <div v-if="successMessage" class="success-message">
-        {{ successMessage }}
-      </div>
-      
-      <div class="form-actions">
-        <button 
-          type="submit" 
-          class="btn-primary" 
-          :disabled="submitLoading"
+    <div v-else class="settings-content">
+      <!-- 左侧导航标签 -->
+      <div class="settings-nav">
+        <div
+          v-for="(item, index) in navItems"
+          :key="index"
+          :class="['nav-item', { active: activeTab === item.key }]"
+          @click="activeTab = item.key"
         >
-          {{ submitLoading ? '保存中...' : '保存设置' }}
-        </button>
+          {{ $t(item.label) }}
+        </div>
       </div>
-    </form>
+      
+      <!-- 右侧内容区域 -->
+      <div class="settings-body">
+        <!-- 提示词设置 -->
+        <div v-if="activeTab === 'prompt'" class="tab-content">
+          <div class="setting-group-vertical">
+            <div class="setting-label">{{ $t('settings.promptText') }}</div>
+            <div class="setting-control">
+              <textarea
+                v-model="form.prompt"
+                :placeholder="$t('settings.promptPlaceholder')"
+                class="textarea-control"
+                rows="6"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 规则设置 -->
+        <div v-if="activeTab === 'rules'" class="tab-content">
+          <div class="setting-group-vertical">
+            <div class="setting-label">{{ $t('settings.rulesText') }}</div>
+            <div class="setting-control">
+              <textarea
+                v-model="form.rules"
+                :placeholder="$t('settings.rulesPlaceholder')"
+                class="textarea-control"
+                rows="6"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 通知设置 -->
+        <div v-if="activeTab === 'notifications'" class="tab-content">
+          <div class="setting-group">
+            <div class="setting-label">{{ $t('settings.enableNotifications') }}</div>
+            <div class="setting-control">
+              <div class="switch-control">
+                <input 
+                  type="checkbox" 
+                  id="notification-toggle" 
+                  v-model="form.notificationEnabled"
+                  class="toggle-input"
+                />
+                <label for="notification-toggle" class="toggle-label"></label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 保存按钮 -->
+        <div class="settings-action">
+          <button 
+            class="btn-primary save-btn" 
+            :disabled="submitLoading"
+            @click="saveSettings"
+          >
+            {{ submitLoading ? $t('settings.savingSettings') : $t('settings.saveSettings') }}
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div v-if="successMessage" class="success-toast">
+      {{ successMessage }}
+    </div>
   </div>
 </template>
 
 <script>
 import userStore from '../store/userStore';
+import i18n from '../i18n';
 
 export default {
   name: 'UserSettings',
@@ -63,14 +100,20 @@ export default {
   data() {
     return {
       form: {
-        theme: 'light',
-        language: 'zh-CN',
-        notificationEnabled: false
+        notificationEnabled: false,
+        prompt: '',
+        rules: ''
       },
       loading: true,
       submitLoading: false,
       error: '',
-      successMessage: ''
+      successMessage: '',
+      activeTab: 'prompt',
+      navItems: [
+        { key: 'prompt', label: 'settings.promptSettings' },
+        { key: 'rules', label: 'settings.rulesSettings' },
+        { key: 'notifications', label: 'settings.notifications' }
+      ]
     };
   },
   
@@ -86,14 +129,11 @@ export default {
       
       try {
         const settings = await userStore.getUserSettings();
-        this.form.theme = settings.theme || 'light';
-        this.form.language = settings.language || 'zh-CN';
         this.form.notificationEnabled = settings.notification_enabled === 1;
-        
-        // 应用主题
-        this.applyTheme(this.form.theme);
+        this.form.prompt = settings.prompt || '';
+        this.form.rules = settings.rules || '';
       } catch (error) {
-        this.error = error.response?.data?.error || '获取用户设置失败';
+        this.error = error.response?.data?.error || this.$t('common.error');
       } finally {
         this.loading = false;
       }
@@ -101,34 +141,32 @@ export default {
     
     // 保存设置
     async saveSettings() {
+      if (this.submitLoading) return;
+      
       this.submitLoading = true;
       this.error = '';
-      this.successMessage = '';
       
       try {
         await userStore.updateSettings({
-          theme: this.form.theme,
-          language: this.form.language,
-          notification_enabled: this.form.notificationEnabled
+          notification_enabled: this.form.notificationEnabled,
+          prompt: this.form.prompt,
+          rules: this.form.rules
         });
         
-        // 应用主题
-        this.applyTheme(this.form.theme);
-        
-        this.successMessage = '设置保存成功';
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 3000);
+        this.showSuccessMessage(this.$t('settings.settingsSaved'));
       } catch (error) {
-        this.error = error.response?.data?.error || '保存设置失败';
+        this.error = error.response?.data?.error || this.$t('common.error');
       } finally {
         this.submitLoading = false;
       }
     },
     
-    // 应用主题
-    applyTheme(theme) {
-      document.documentElement.setAttribute('data-theme', theme);
+    // 显示成功消息
+    showSuccessMessage(message) {
+      this.successMessage = message;
+      setTimeout(() => {
+        this.successMessage = '';
+      }, 3000);
     }
   }
 };
@@ -136,111 +174,222 @@ export default {
 
 <style scoped>
 .user-settings {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-h2 {
-  text-align: center;
-  margin-bottom: 30px;
-  color: var(--text-color);
-}
-
-.loading, .error-message {
-  text-align: center;
-  padding: 20px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .loading {
-  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.loading-spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .error-message {
+  padding: 16px;
   color: #f56c6c;
-}
-
-.success-message {
-  color: #67c23a;
-  margin-bottom: 15px;
-  padding: 10px;
-  background-color: rgba(103, 194, 58, 0.1);
-  border-radius: 4px;
   text-align: center;
 }
 
-.settings-form {
-  background-color: var(--card-bg);
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.form-group {
+.settings-nav {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 20px;
 }
 
-label {
-  display: block;
-  margin-bottom: 10px;
-  color: var(--text-color);
+.nav-item {
+  padding: 12px 20px;
+  cursor: pointer;
   font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
 }
 
-select {
+.nav-item:hover {
+  color: var(--text-color);
+}
+
+.nav-item.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.settings-body {
+  flex-grow: 1;
+  padding: 0 20px;
+  overflow-y: auto;
+}
+
+.tab-content {
+  padding-bottom: 20px;
+}
+
+.setting-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.setting-group-vertical {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.setting-label {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.setting-control {
+  margin-top: 8px;
+}
+
+.select-control {
+  min-width: 120px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--chat-bg);
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.textarea-control {
   width: 100%;
   padding: 10px;
-  border: 1px solid var(--border-color);
   border-radius: 4px;
-  background-color: var(--input-bg);
+  border: 1px solid var(--border-color);
+  background-color: var(--chat-bg);
   color: var(--text-color);
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23606266' d='M6 8.825L1.175 4 0 5.175 6 11.175 12 5.175 10.825 4 6 8.825z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px;
+  font-size: 14px;
+  resize: vertical;
+  font-family: var(--font-family);
 }
 
-.checkbox-group {
-  display: flex;
-  align-items: center;
+.textarea-control:focus {
+  outline: none;
+  border-color: var(--primary-color);
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.switch-control {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+}
+
+.toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-label {
+  position: absolute;
   cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 22px;
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: 18px;
+.toggle-label:before {
+  position: absolute;
+  content: "";
   height: 18px;
-  accent-color: #409eff;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
 }
 
-.form-actions {
-  margin-top: 30px;
+.toggle-input:checked + .toggle-label {
+  background-color: var(--primary-color);
 }
 
-.btn-primary {
-  width: 100%;
-  background: #409eff;
+.toggle-input:checked + .toggle-label:before {
+  transform: translateX(22px);
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 16px 0;
+}
+
+.settings-action {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 0;
+}
+
+.save-btn {
+  min-width: 120px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  background-color: var(--primary-color);
   color: white;
   border: none;
-  padding: 12px;
-  border-radius: 4px;
+  font-size: 14px;
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
 }
 
-.btn-primary:hover {
-  background: #66b1ff;
+.save-btn:hover {
+  background-color: var(--secondary-color);
 }
 
-.btn-primary:disabled {
-  background: #a0cfff;
+.save-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+}
+
+.success-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #67c23a;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 100;
+  animation: fade-in-out 3s ease-in-out;
+}
+
+@keyframes fade-in-out {
+  0%, 100% { opacity: 0; }
+  10%, 90% { opacity: 1; }
 }
 </style> 
