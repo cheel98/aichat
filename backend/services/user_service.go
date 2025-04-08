@@ -3,8 +3,10 @@ package services
 import (
 	"aiChat/backend/database"
 	"aiChat/backend/models"
-	"database/sql"
 	"errors"
+	"time"
+
+	"gorm.io/gorm"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,11 +32,12 @@ var (
 )
 
 // RegisterUser 注册新用户
-func RegisterUser(req models.RegisterRequest) (uint64, error) {
+func RegisterUser(req models.RegisterRequest) (uint, error) {
+	db := database.GetDB()
+
 	// 验证用户名是否已存在
-	var count int
-	err := database.DB.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", req.Username).Scan(&count)
-	if err != nil {
+	var count int64
+	if err := db.Model(&models.User{}).Where("username = ?", req.Username).Count(&count).Error; err != nil {
 		return 0, err
 	}
 	if count > 0 {
@@ -47,8 +50,7 @@ func RegisterUser(req models.RegisterRequest) (uint64, error) {
 		if req.Email == "" {
 			return 0, errors.New("email is required for email login type")
 		}
-		err = database.DB.QueryRow("SELECT COUNT(*) FROM users WHERE email = ?", req.Email).Scan(&count)
-		if err != nil {
+		if err := db.Model(&models.User{}).Where("email = ?", req.Email).Count(&count).Error; err != nil {
 			return 0, err
 		}
 		if count > 0 {
@@ -59,8 +61,7 @@ func RegisterUser(req models.RegisterRequest) (uint64, error) {
 		if req.Phone == "" {
 			return 0, errors.New("phone is required for phone login type")
 		}
-		err = database.DB.QueryRow("SELECT COUNT(*) FROM users WHERE phone = ?", req.Phone).Scan(&count)
-		if err != nil {
+		if err := db.Model(&models.User{}).Where("phone = ?", req.Phone).Count(&count).Error; err != nil {
 			return 0, err
 		}
 		if count > 0 {
@@ -76,91 +77,75 @@ func RegisterUser(req models.RegisterRequest) (uint64, error) {
 		return 0, err
 	}
 
-	// 开始事务
-	tx, err := database.DB.Begin()
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
+	// 使用事务
+	var userID uint
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// 创建用户
+		user := models.User{
+			Username:  req.Username,
+			Password:  string(hashedPassword),
+			LoginType: req.LoginType,
 		}
-	}()
 
-	var result sql.Result
-	var userID int64
+		if req.LoginType == 1 {
+			user.Email = req.Email
+		} else {
+			user.Phone = req.Phone
+		}
 
-	// 插入用户记录
-	if req.LoginType == 1 {
-		// 邮箱注册
-		result, err = tx.Exec(
-			"INSERT INTO users (username, password, email, login_type) VALUES (?, ?, ?, ?)",
-			req.Username, hashedPassword, req.Email, req.LoginType,
-		)
-	} else {
-		// 手机号注册
-		result, err = tx.Exec(
-			"INSERT INTO users (username, password, phone, login_type) VALUES (?, ?, ?, ?)",
-			req.Username, hashedPassword, req.Phone, req.LoginType,
-		)
-	}
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+
+		userID = user.ID
+
+		// 创建用户设置
+		userSettings := models.UserSettings{
+			UserID: userID,
+		}
+
+		if err := tx.Create(&userSettings).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	if err != nil {
 		return 0, err
 	}
 
-	// 获取用户ID
-	userID, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	// 创建用户设置
-	_, err = tx.Exec("INSERT INTO user_settings (user_id) VALUES (?)", userID)
-	if err != nil {
-		return 0, err
-	}
-
-	// 提交事务
-	if err = tx.Commit(); err != nil {
-		return 0, err
-	}
-
-	return uint64(userID), nil
+	return userID, nil
 }
 
 // LoginUser 用户登录
 func LoginUser(req models.LoginRequest) (*models.LoginResponse, error) {
+	db := database.GetDB()
 	var user models.User
-	var row *sql.Row
 
 	// 基于登录类型选择查询方式
+	query := db.Where("status = ?", 1)
+
 	if req.LoginType == 1 {
 		// 邮箱登录
-		row = database.DB.QueryRow("SELECT * FROM users WHERE email = ? AND status = 1 LIMIT 1", req.Account)
+		query = query.Where("email = ?", req.Account)
 	} else if req.LoginType == 2 {
 		// 手机号登录
-		row = database.DB.QueryRow("SELECT * FROM users WHERE phone = ? AND status = 1 LIMIT 1", req.Account)
+		query = query.Where("phone = ?", req.Account)
 	} else {
 		return nil, ErrInvalidLoginType
 	}
 
-	// 扫描用户数据
-	err := row.Scan(
-		&user.ID, &user.Username, &user.Password, &user.Email, &user.Phone,
-		&user.Avatar, &user.Status, &user.LoginType, &user.LastLoginTime,
-		&user.LastLoginIP, &user.CreatedAt, &user.UpdatedAt,
-	)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
+	// 查询用户
+	if err := query.First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
 
 	// 验证密码
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
 		return nil, ErrInvalidCredentials
 	}
@@ -172,11 +157,10 @@ func LoginUser(req models.LoginRequest) (*models.LoginResponse, error) {
 	}
 
 	// 更新最后登录时间
-	_, err = database.DB.Exec(
-		"UPDATE users SET last_login_time = NOW() WHERE id = ?",
-		user.ID,
-	)
-	if err != nil {
+	now := time.Now()
+	if err := db.Model(&user).Updates(map[string]interface{}{
+		"last_login_time": &now,
+	}).Error; err != nil {
 		return nil, err
 	}
 
@@ -191,19 +175,11 @@ func LoginUser(req models.LoginRequest) (*models.LoginResponse, error) {
 
 // GetUserByID 通过ID获取用户
 func GetUserByID(userID uint64) (*models.User, error) {
+	db := database.GetDB()
 	var user models.User
 
-	err := database.DB.QueryRow(
-		"SELECT * FROM users WHERE id = ? AND status = 1 LIMIT 1",
-		userID,
-	).Scan(
-		&user.ID, &user.Username, &user.Password, &user.Email, &user.Phone,
-		&user.Avatar, &user.Status, &user.LoginType, &user.LastLoginTime,
-		&user.LastLoginIP, &user.CreatedAt, &user.UpdatedAt,
-	)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.Where("id = ? AND status = ?", userID, 1).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
@@ -217,15 +193,12 @@ func GetUserByID(userID uint64) (*models.User, error) {
 
 // UpdateUserProfile 更新用户资料
 func UpdateUserProfile(userID uint64, req models.UpdateProfileRequest) error {
+	db := database.GetDB()
+
 	// 如果更新用户名，检查用户名是否已存在
 	if req.Username != "" {
-		var count int
-		err := database.DB.QueryRow(
-			"SELECT COUNT(*) FROM users WHERE username = ? AND id != ?",
-			req.Username, userID,
-		).Scan(&count)
-
-		if err != nil {
+		var count int64
+		if err := db.Model(&models.User{}).Where("username = ? AND id != ?", req.Username, userID).Count(&count).Error; err != nil {
 			return err
 		}
 
@@ -234,46 +207,40 @@ func UpdateUserProfile(userID uint64, req models.UpdateProfileRequest) error {
 		}
 	}
 
-	// 准备更新查询
-	query := "UPDATE users SET updated_at = NOW()"
-	params := []interface{}{}
+	// 准备更新数据
+	updates := map[string]interface{}{}
 
 	if req.Username != "" {
-		query += ", username = ?"
-		params = append(params, req.Username)
+		updates["username"] = req.Username
 	}
 
 	if req.Avatar != "" {
-		query += ", avatar = ?"
-		params = append(params, req.Avatar)
+		updates["avatar"] = req.Avatar
 	}
 
-	query += " WHERE id = ?"
-	params = append(params, userID)
+	// 如果没有要更新的字段，直接返回
+	if len(updates) == 0 {
+		return nil
+	}
 
-	// 执行更新
-	_, err := database.DB.Exec(query, params...)
-	return err
+	return db.Model(&models.User{}).Where("id = ?", userID).Updates(updates).Error
 }
 
 // UpdateUserPassword 更新用户密码
 func UpdateUserPassword(userID uint64, req models.UpdatePasswordRequest) error {
-	// 获取当前密码
-	var hashedPassword string
-	err := database.DB.QueryRow(
-		"SELECT password FROM users WHERE id = ?",
-		userID,
-	).Scan(&hashedPassword)
+	db := database.GetDB()
 
-	if err != nil {
-		if err == sql.ErrNoRows {
+	// 获取用户当前密码
+	var user models.User
+	if err := db.Select("password").Where("id = ?", userID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
 		return err
 	}
 
-	// 验证旧密码
-	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(req.OldPassword))
+	// 验证当前密码
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
 	if err != nil {
 		return ErrInvalidCredentials
 	}
@@ -285,39 +252,27 @@ func UpdateUserPassword(userID uint64, req models.UpdatePasswordRequest) error {
 	}
 
 	// 更新密码
-	_, err = database.DB.Exec(
-		"UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?",
-		newHashedPassword, userID,
-	)
-	return err
+	return db.Model(&models.User{}).Where("id = ?", userID).Update("password", string(newHashedPassword)).Error
 }
 
 // GetUserSettings 获取用户设置
-func GetUserSettings(userID uint64) (*models.UserSettings, error) {
+func GetUserSettings(userID uint) (*models.UserSettings, error) {
+	db := database.GetDB()
 	var settings models.UserSettings
 
-	err := database.DB.QueryRow(
-		"SELECT * FROM user_settings WHERE user_id = ? LIMIT 1",
-		userID,
-	).Scan(
-		&settings.ID, &settings.UserID, &settings.Theme, &settings.Language,
-		&settings.NotificationEnabled, &settings.Prompt, &settings.Rules,
-		&settings.CreatedAt, &settings.UpdatedAt,
-	)
-
+	err := db.Where("user_id = ?", userID).First(&settings).Error
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 如果没有设置，则创建默认设置
-			_, err = database.DB.Exec(
-				"INSERT INTO user_settings (user_id) VALUES (?)",
-				userID,
-			)
-			if err != nil {
+			settings = models.UserSettings{
+				UserID: userID,
+			}
+
+			if err := db.Create(&settings).Error; err != nil {
 				return nil, err
 			}
 
-			// 重新获取设置
-			return GetUserSettings(userID)
+			return &settings, nil
 		}
 		return nil, err
 	}
@@ -327,42 +282,32 @@ func GetUserSettings(userID uint64) (*models.UserSettings, error) {
 
 // UpdateUserSettings 更新用户设置
 func UpdateUserSettings(userID uint64, req models.UpdateSettingsRequest) error {
-	// 准备更新查询
-	query := "UPDATE user_settings SET updated_at = NOW()"
-	params := []interface{}{}
+	db := database.GetDB()
+
+	// 准备更新数据
+	updates := map[string]interface{}{}
 
 	if req.Theme != "" {
-		query += ", theme = ?"
-		params = append(params, req.Theme)
+		updates["theme"] = req.Theme
 	}
 
 	if req.Language != "" {
-		query += ", language = ?"
-		params = append(params, req.Language)
+		updates["language"] = req.Language
 	}
 
 	notificationEnabled := 0
 	if req.NotificationEnabled {
 		notificationEnabled = 1
 	}
-	query += ", notification_enabled = ?"
-	params = append(params, notificationEnabled)
+	updates["notification_enabled"] = notificationEnabled
 
-	// 添加对prompt和rules字段的处理
 	if req.Prompt != "" {
-		query += ", prompt = ?"
-		params = append(params, req.Prompt)
+		updates["prompt"] = req.Prompt
 	}
 
 	if req.Rules != "" {
-		query += ", rules = ?"
-		params = append(params, req.Rules)
+		updates["rules"] = req.Rules
 	}
 
-	query += " WHERE user_id = ?"
-	params = append(params, userID)
-
-	// 执行更新
-	_, err := database.DB.Exec(query, params...)
-	return err
+	return db.Model(&models.UserSettings{}).Where("user_id = ?", userID).Updates(updates).Error
 }

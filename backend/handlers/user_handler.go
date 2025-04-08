@@ -195,7 +195,7 @@ func GetUserSettingsHandler(c *gin.Context) {
 		return
 	}
 
-	settings, err := services.GetUserSettings(userID.(uint64))
+	settings, err := services.GetUserSettings(userID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取设置失败: " + err.Error()})
 		return

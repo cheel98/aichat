@@ -23,7 +23,7 @@ type User struct {
 // UserSession 用户会话模型
 type UserSession struct {
 	gorm.Model
-	UserID     uint64    `gorm:"not null" json:"user_id"`
+	UserID     uint      `gorm:"not null" json:"user_id"`
 	Token      string    `gorm:"type:varchar(255);not null;unique" json:"token"`
 	ExpireTime time.Time `gorm:"not null" json:"expire_time"`
 }
@@ -31,7 +31,7 @@ type UserSession struct {
 // UserSettings 用户设置模型
 type UserSettings struct {
 	gorm.Model
-	UserID              uint64 `gorm:"not null;unique" json:"user_id"`
+	UserID              uint   `gorm:"not null;unique" json:"user_id"`
 	Theme               string `gorm:"type:varchar(20);default:'light'" json:"theme"`
 	Language            string `gorm:"type:varchar(10);default:'zh-CN'" json:"language"`
 	NotificationEnabled int    `gorm:"type:tinyint;default:1" json:"notification_enabled"`

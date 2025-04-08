@@ -3,6 +3,7 @@ package services
 import (
 	"aiChat/backend/config"
 	"aiChat/backend/database"
+	"aiChat/backend/models"
 	"errors"
 	"fmt"
 	"time"
@@ -20,12 +21,14 @@ var (
 
 // TokenClaims 令牌声明
 type TokenClaims struct {
-	UserID uint64 `json:"user_id"`
+	UserID uint `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken 生成JWT令牌
-func GenerateToken(userID uint64) (string, error) {
+func GenerateToken(userID uint) (string, error) {
+	db := database.GetDB()
+
 	// 设置令牌过期时间
 	expirationTime := time.Now().Add(time.Duration(config.AppConfig.JWT.ExpiresIn) * time.Hour)
 
@@ -49,11 +52,13 @@ func GenerateToken(userID uint64) (string, error) {
 	}
 
 	// 存储会话到数据库
-	_, err = database.DB.Exec(
-		"INSERT INTO user_sessions (user_id, token, expire_time) VALUES (?, ?, ?)",
-		userID, tokenString, expirationTime,
-	)
-	if err != nil {
+	userSession := models.UserSession{
+		UserID:     userID,
+		Token:      tokenString,
+		ExpireTime: expirationTime,
+	}
+
+	if err := db.Create(&userSession).Error; err != nil {
 		return "", err
 	}
 
@@ -62,6 +67,8 @@ func GenerateToken(userID uint64) (string, error) {
 
 // ValidateToken 验证令牌
 func ValidateToken(tokenString string) (*TokenClaims, error) {
+	db := database.GetDB()
+
 	// 解析JWT令牌
 	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// 验证签名方法
@@ -85,11 +92,10 @@ func ValidateToken(tokenString string) (*TokenClaims, error) {
 	}
 
 	// 检查令牌是否在数据库中
-	var count int
-	err = database.DB.QueryRow(
-		"SELECT COUNT(*) FROM user_sessions WHERE token = ? AND expire_time > NOW()",
-		tokenString,
-	).Scan(&count)
+	var count int64
+	err = db.Model(&models.UserSession{}).
+		Where("token = ? AND expire_time > ?", tokenString, time.Now()).
+		Count(&count).Error
 
 	if err != nil {
 		return nil, err
@@ -104,12 +110,12 @@ func ValidateToken(tokenString string) (*TokenClaims, error) {
 
 // InvalidateToken 使令牌失效
 func InvalidateToken(tokenString string) error {
-	_, err := database.DB.Exec("DELETE FROM user_sessions WHERE token = ?", tokenString)
-	return err
+	db := database.GetDB()
+	return db.Where("token = ?", tokenString).Delete(&models.UserSession{}).Error
 }
 
 // CleanupExpiredTokens 清理过期会话
 func CleanupExpiredTokens() error {
-	_, err := database.DB.Exec("DELETE FROM user_sessions WHERE expire_time <= NOW()")
-	return err
+	db := database.GetDB()
+	return db.Where("expire_time <= ?", time.Now()).Delete(&models.UserSession{}).Error
 }

@@ -4,31 +4,12 @@ import (
 	"aiChat/backend/models"
 	"aiChat/backend/services"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
-
-// 生成随机会话ID
-func generateSessionID() string {
-	// 初始化随机数生成器
-	rand.Seed(time.Now().UnixNano())
-
-	// 生成16位的随机字符串
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	id := make([]byte, 16)
-	for i := range id {
-		id[i] = charset[rand.Intn(len(charset))]
-	}
-
-	// 添加时间戳前缀
-	timestamp := time.Now().Unix()
-	return fmt.Sprintf("session_%d_%s", timestamp, string(id))
-}
 
 // CreateSessionHandler 创建新的聊天会话
 func CreateSessionHandler(c *gin.Context) {
@@ -51,8 +32,6 @@ func CreateSessionHandler(c *gin.Context) {
 		UserID:    userID.(uint64),
 		Title:     req.Title,
 		IsPinned:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
 	}
 
 	// 调用服务保存会话
@@ -128,9 +107,9 @@ func GetSessionHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":       session.ID,
-		"title":    session.Title,
-		"messages": messages,
+		"session_id": session.SessionID,
+		"title":      session.Title,
+		"messages":   messages,
 	})
 }
 
@@ -180,8 +159,6 @@ func UpdateSessionHandler(c *gin.Context) {
 			session.IsPinned = 0
 		}
 	}
-
-	session.UpdatedAt = time.Now()
 
 	// 保存更新
 	if err := services.UpdateSession(session); err != nil {
@@ -283,7 +260,6 @@ func SendMessageHandler(c *gin.Context) {
 		SessionID: sessionID,
 		Role:      "user",
 		Content:   content,
-		CreatedAt: time.Now(),
 	}
 
 	// 保存用户消息
@@ -321,7 +297,6 @@ func SendMessageHandler(c *gin.Context) {
 		SessionID: sessionID,
 		Role:      "ai",
 		Content:   aiReply,
-		CreatedAt: time.Now(),
 	}
 
 	// 保存AI消息
@@ -331,7 +306,6 @@ func SendMessageHandler(c *gin.Context) {
 	}
 
 	// 更新会话的最后更新时间
-	session.UpdatedAt = time.Now()
 	if err := services.UpdateSession(session); err != nil {
 		// 仅记录错误，不中断响应
 		fmt.Printf("更新会话失败: %v\n", err)
