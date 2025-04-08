@@ -75,6 +75,22 @@
           </svg>
         </button>
       </div>
+      <div class="input-options">
+        <button 
+          @click="toggleThinkMode" 
+          class="think-button"
+          :class="{ 'active': isDeepThinking }"
+        >
+          <span class="think-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a8 8 0 0 0-8 8c0 2.2.9 4.2 2.3 5.6.4.4.6.9.6 1.4v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1c0-.5.2-1 .6-1.4A7.95 7.95 0 0 0 20 10c0-4.4-3.6-8-8-8z"></path>
+              <path d="M10 16v2"></path>
+              <path d="M14 16v2"></path>
+            </svg>
+          </span>
+          {{ $t('chat.think') }}
+        </button>
+      </div>
       <div class="input-info">
         {{ $t('chat.enterHint') }}
       </div>
@@ -103,7 +119,8 @@ export default {
       inputMessage: '',
       messages: [],
       loading: false,
-      currentConversationId: null
+      currentConversationId: null,
+      isDeepThinking: false
     }
   },
   
@@ -164,7 +181,8 @@ export default {
       
       let msg = {
         message: this.inputMessage,
-        conversation_id: this.currentConversationId
+        conversation_id: this.currentConversationId,
+        deep_thinking: this.isDeepThinking
       }
 
       // 保存用户输入，然后清空输入框
@@ -363,6 +381,10 @@ export default {
           });
         }
       }
+    },
+    
+    toggleThinkMode() {
+      this.isDeepThinking = !this.isDeepThinking;
     }
   },
 
@@ -638,6 +660,47 @@ textarea::placeholder {
 .send-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.input-options {
+  display: flex;
+  justify-content: flex-start;
+  padding: 4px 16px;
+  margin-top: 4px;
+}
+
+.think-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.think-button:hover {
+  background-color: rgba(29, 155, 240, 0.1);
+}
+
+.think-button.active {
+  color: var(--primary-color);
+  background-color: rgba(29, 155, 240, 0.15);
+  border-color: var(--primary-color);
+}
+
+.think-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.think-icon svg {
+  stroke: currentColor;
 }
 
 .input-info {

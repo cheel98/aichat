@@ -215,8 +215,9 @@ func SendMessageHandler(c *gin.Context) {
 	}
 
 	var req struct {
-		Content string `json:"content" binding:"required"`
-		Message string `json:"message"` // 兼容旧版API
+		Content      string `json:"content" binding:"required"`
+		Message      string `json:"message"`       // 兼容旧版API
+		DeepThinking bool   `json:"deep_thinking"` // 是否使用深度思考模式（使用reasoner模型）
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -284,8 +285,8 @@ func SendMessageHandler(c *gin.Context) {
 	// 获取AI服务实例
 	aiService := services.GetDefaultDeepSeekService()
 
-	// 调用流式API获取回复
-	aiReply, err := aiService.StreamChatResponse(content, flushWriter)
+	// 调用流式API获取回复，传递deep_thinking参数
+	aiReply, err := aiService.StreamChatResponse(content, flushWriter, req.DeepThinking)
 	if err != nil {
 		c.Error(err)
 		return

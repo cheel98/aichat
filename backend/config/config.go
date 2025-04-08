@@ -41,9 +41,10 @@ type JWTConfig struct {
 
 // DeepSeekConfig DeepSeek API配置
 type DeepSeekConfig struct {
-	APIKey  string `yaml:"api_key"`
-	BaseURL string `yaml:"base_url"`
-	Model   string `yaml:"model"`
+	APIKey        string `yaml:"api_key"`
+	BaseURL       string `yaml:"base_url"`
+	Model         string `yaml:"model"`
+	ReasonerModel string `yaml:"reasoner_model"`
 }
 
 // DSN 生成数据库连接字符串

@@ -18,3 +18,4 @@ deepseek:
   api_key: sk-ab05874f5a4847bfa44c0a8c07db03e6
   base_url: https://api.deepseek.com/v1
   model: deepseek-chat 
+  reasoner_model: deepseek-reasoner 

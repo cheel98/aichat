@@ -21,6 +21,7 @@ export default {
     welcomeDesc: 'Start a conversation with AI, Raspberry will provide intelligent and interesting answers',
     me: 'Me',
     enterHint: 'Press Enter to send, Shift+Enter for a new line',
+    think: 'Think Mode',
     exampleQuestions: [
       'Introduce the basic principles of quantum computing',
       'Write a short article about artificial intelligence',

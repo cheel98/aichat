@@ -30,7 +30,7 @@ func ChatHandler(c *gin.Context) {
 	aiService := services.GetDefaultDeepSeekService()
 
 	// 调用DeepSeek API获取回复
-	reply, err := aiService.GetChatResponse(msg.Message)
+	reply, err := aiService.GetChatResponse(msg.Message, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取AI回复失败: " + err.Error()})
 		return

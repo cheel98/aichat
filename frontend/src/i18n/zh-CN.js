@@ -21,6 +21,7 @@ export default {
     welcomeDesc: '开始与AI对话，Raspberry将为您提供智能、有趣的回答',
     me: '我',
     enterHint: '按 Enter 发送，Shift+Enter 换行',
+    think: '思考模式',
     exampleQuestions: [
       '介绍一下量子计算的基本原理',
       '帮我写一篇关于人工智能的短文',

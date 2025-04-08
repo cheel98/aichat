@@ -14,9 +14,10 @@ import (
 
 // DeepSeekConfig 保存DeepSeek API的配置信息
 type DeepSeekConfig struct {
-	APIKey  string
-	BaseURL string
-	Model   string
+	APIKey        string
+	BaseURL       string
+	Model         string
+	ReasonerModel string
 }
 
 // DeepSeekService 处理与DeepSeek API的交互
@@ -26,8 +27,9 @@ type DeepSeekService struct {
 
 // 创建默认DeepSeek服务实例
 var defaultDeepSeekService = NewDeepSeekService(DeepSeekConfig{
-	BaseURL: "https://api.deepseek.com/v1",
-	Model:   "deepseek-chat", // 默认使用v3模型
+	BaseURL:       "https://api.deepseek.com/v1",
+	Model:         "deepseek-chat",     // 默认使用v3模型
+	ReasonerModel: "deepseek-reasoner", // 用于思考模式的模型
 })
 
 // NewDeepSeekService 创建一个新的DeepSeekService实例
@@ -50,6 +52,11 @@ func (s *DeepSeekService) SetAPIKey(apiKey string) {
 // SetModel 设置要使用的模型
 func (s *DeepSeekService) SetModel(model string) {
 	s.Config.Model = model
+}
+
+// SetReasonerModel 设置要使用的思考模型
+func (s *DeepSeekService) SetReasonerModel(model string) {
+	s.Config.ReasonerModel = model
 }
 
 // ChatRequest DeepSeek API聊天请求
@@ -85,16 +92,22 @@ type ChatResponse struct {
 }
 
 // StreamChatResponse 流式获取聊天回复，同时返回完整的响应文本
-func (s *DeepSeekService) StreamChatResponse(userMessage string, writer io.Writer) (string, error) {
+func (s *DeepSeekService) StreamChatResponse(userMessage string, writer io.Writer, deepThinking bool) (string, error) {
 	if s.Config.APIKey == "" {
 		response := "未配置API密钥，无法连接DeepSeek服务"
 		writer.Write([]byte(response))
 		return response, nil
 	}
 
+	// 根据deepThinking标志选择使用的模型
+	modelToUse := s.Config.Model
+	if deepThinking && s.Config.ReasonerModel != "" {
+		modelToUse = s.Config.ReasonerModel
+	}
+
 	// 构建请求体
 	requestBody := ChatRequest{
-		Model: s.Config.Model,
+		Model: modelToUse,
 		Messages: []ChatMessage{
 			{
 				Role:    "user",
@@ -241,14 +254,20 @@ func (s *DeepSeekService) StreamChatResponse(userMessage string, writer io.Write
 }
 
 // GetChatResponse 获取聊天回复
-func (s *DeepSeekService) GetChatResponse(userMessage string) (string, error) {
+func (s *DeepSeekService) GetChatResponse(userMessage string, deepThinking bool) (string, error) {
 	if s.Config.APIKey == "" {
 		return "未配置API密钥，无法连接DeepSeek服务", nil
 	}
 
+	// 根据deepThinking标志选择使用的模型
+	modelToUse := s.Config.Model
+	if deepThinking && s.Config.ReasonerModel != "" {
+		modelToUse = s.Config.ReasonerModel
+	}
+
 	// 构建请求体
 	requestBody := ChatRequest{
-		Model: s.Config.Model,
+		Model: modelToUse,
 		Messages: []ChatMessage{
 			{
 				Role:    "user",

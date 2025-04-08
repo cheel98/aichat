@@ -29,6 +29,7 @@ func main() {
 	deepseekService := services.GetDefaultDeepSeekService()
 	deepseekService.SetAPIKey(appConfig.DeepSeek.APIKey)
 	deepseekService.SetModel(appConfig.DeepSeek.Model)
+	deepseekService.SetReasonerModel(appConfig.DeepSeek.ReasonerModel)
 
 	// 初始化数据库连接
 	if err := database.InitDB(); err != nil {
