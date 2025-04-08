@@ -57,26 +57,26 @@
     </div>
     
     <!-- 模态框 - 用户设置 -->
-    <div v-if="showSettingsModal" class="modal-overlay" @click.self="closeModals">
+    <div v-if="showSettingsModal"  class="modal-overlay" @click.self="closeModals">
       <div class="modal-container">
         <div class="modal-header">
           <h2>{{ $t('settings.title') }}</h2>
           <button class="modal-close-btn" @click="closeModals">×</button>
         </div>
         <div class="modal-body">
-          <UserSettings />
+          <UserSettings @close="this.showSettingsModal = false" />
         </div>
       </div>
     </div>
     <!-- 模态框 - 用户资料 -->
-    <div v-if="showProfileModal" class="modal-overlay" @click.self="closeModals">
+    <div v-if="showProfileModal"  class="modal-overlay" @click.self="closeModals">
       <div class="modal-container">
         <div class="modal-header">
           <h2>{{ $t('profile.title') }}</h2>
           <button class="modal-close-btn" @click="closeModals">×</button>
         </div>
         <div class="modal-body">
-          <UserProfile />
+          <UserProfile @close="this.showProfileModal = false" />
         </div>
       </div>
     </div>
@@ -114,6 +114,12 @@ export default {
   },
   
   methods: {
+    closeProfileModal() {
+      this.showProfileModal = false;
+    },
+    closeSettingsModal() {
+      
+    },
     handleNavigation(page) {
       switch (page) {
         case 'profile':

@@ -1,6 +1,6 @@
 export default {
   app: {
-    title: 'DeepSeek AI Chat',
+    title: 'Raspberry',
     newChat: 'New Chat',
     settings: 'Settings',
     profile: 'Profile',
@@ -17,8 +17,8 @@ export default {
     copy: 'Copy',
     saveToHistory: 'Save to History',
     errorMessage: 'Sorry, an error occurred. Please try again.',
-    welcome: 'Welcome to DeepSeek AI Chat',
-    welcomeDesc: 'Start a conversation with AI, DeepSeek will provide intelligent and interesting answers',
+    welcome: 'Welcome to Raspberry',
+    welcomeDesc: 'Start a conversation with AI, Raspberry will provide intelligent and interesting answers',
     me: 'Me',
     enterHint: 'Press Enter to send, Shift+Enter for a new line',
     exampleQuestions: [
@@ -80,7 +80,7 @@ export default {
     deleteErrorLog: 'Error deleting conversation:'
   },
   auth: {
-    welcome: 'Welcome to AI Chat',
+    welcome: 'Welcome to Raspberry',
     login: 'Login',
     register: 'Register',
     account: 'Account',

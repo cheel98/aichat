@@ -11,7 +11,7 @@ export const API_URL = `${API_BASE_URL}/api`;
 // 其他配置项可以在此处添加
 export const CONFIG = {
   // 应用名称
-  appName: 'AI聊天助手',
+  appName: 'Raspberry',
   
   // 版本号
   version: '1.0.0',

@@ -1,6 +1,6 @@
 export default {
   app: {
-    title: 'DeepSeek AI 聊天',
+    title: 'Raspberry',
     newChat: '新建聊天',
     settings: '设置',
     profile: '个人资料',
@@ -17,8 +17,8 @@ export default {
     copy: '复制',
     saveToHistory: '保存到历史记录',
     errorMessage: '抱歉，发生了错误，请重试。',
-    welcome: '欢迎使用 DeepSeek AI 聊天',
-    welcomeDesc: '开始与AI对话，DeepSeek将为您提供智能、有趣的回答',
+    welcome: '欢迎使用 Raspberry',
+    welcomeDesc: '开始与AI对话，Raspberry将为您提供智能、有趣的回答',
     me: '我',
     enterHint: '按 Enter 发送，Shift+Enter 换行',
     exampleQuestions: [

@@ -163,10 +163,10 @@ export default {
     
     // 显示成功消息
     showSuccessMessage(message) {
-      this.successMessage = message;
+      this.$message.success(message);
       setTimeout(() => {
-        this.successMessage = '';
-      }, 3000);
+          this.$emit('close');
+        }, 500);
     }
   }
 };

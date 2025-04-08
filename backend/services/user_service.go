@@ -174,7 +174,7 @@ func LoginUser(req models.LoginRequest) (*models.LoginResponse, error) {
 }
 
 // GetUserByID 通过ID获取用户
-func GetUserByID(userID uint64) (*models.User, error) {
+func GetUserByID(userID uint) (*models.User, error) {
 	db := database.GetDB()
 	var user models.User
 
@@ -192,7 +192,7 @@ func GetUserByID(userID uint64) (*models.User, error) {
 }
 
 // UpdateUserProfile 更新用户资料
-func UpdateUserProfile(userID uint64, req models.UpdateProfileRequest) error {
+func UpdateUserProfile(userID uint, req models.UpdateProfileRequest) error {
 	db := database.GetDB()
 
 	// 如果更新用户名，检查用户名是否已存在

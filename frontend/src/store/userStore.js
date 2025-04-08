@@ -42,10 +42,14 @@ const actions = {
   // 用户登录
   async login(credentials) {
     state.loading = true;
-    state.error = null;
     
     try {
       const response = await authAPI.login(credentials);
+      console.log('登录响应:', response);
+      if (response.status !== 200) {
+        state.error = response.data.message;
+        throw new Error(response.data.message);
+      }
       const { token, user } = response.data;
       
       // 保存令牌和用户信息

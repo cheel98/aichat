@@ -115,7 +115,7 @@ func GetUserProfileHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := services.GetUserByID(userID.(uint64))
+	user, err := services.GetUserByID(userID.(uint))
 	if err != nil {
 		if errors.Is(err, services.ErrUserNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
@@ -144,7 +144,7 @@ func UpdateUserProfileHandler(c *gin.Context) {
 	}
 
 	// 更新用户资料
-	err := services.UpdateUserProfile(userID.(uint64), req)
+	err := services.UpdateUserProfile(userID.(uint), req)
 	if err != nil {
 		if errors.Is(err, services.ErrUsernameExists) {
 			c.JSON(http.StatusConflict, gin.H{"error": "用户名已存在"})

@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
+
+	"aiChat/backend/config"
 
 	_ "github.com/go-sql-driver/mysql"
 	"gorm.io/driver/mysql"
@@ -31,14 +34,40 @@ func InitDB() error {
 
 	// 数据库连接配置
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
+		func() string {
+			if config.AppConfig.Database.User != "" {
+				return config.AppConfig.Database.User
+			}
+			return os.Getenv("DB_USER")
+		}(),
+		func() string {
+			if config.AppConfig.Database.Password != "" {
+				return config.AppConfig.Database.Password
+			}
+			return os.Getenv("DB_PASSWORD")
+		}(),
+		func() string {
+			if config.AppConfig.Database.Host != "" {
+				return config.AppConfig.Database.Host
+			}
+			return os.Getenv("DB_HOST")
+		}(),
+		func() string {
+			if config.AppConfig.Database.Port != 0 {
+				return strconv.Itoa(config.AppConfig.Database.Port)
+			}
+			return os.Getenv("DB_PORT")
+		}(),
+		func() string {
+			if config.AppConfig.Database.DBName != "" {
+				return config.AppConfig.Database.DBName
+			}
+			return os.Getenv("DB_NAME")
+		}(),
 	)
 
 	var err error
+
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: newLogger,
 	})
@@ -46,18 +75,13 @@ func InitDB() error {
 		return err
 	}
 
-	// 获取底层的sqlDB
 	sqlDB, err := db.DB()
 	if err != nil {
 		return err
 	}
 
-	// 设置连接池参数
 	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	// 自动迁移数据库表
 	err = db.AutoMigrate(
 		&models.User{},
 		&models.UserSession{},

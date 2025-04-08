@@ -83,9 +83,7 @@ export default {
   methods: {
     toggleDropdown(event) {
       event.stopPropagation();
-      console.log('切换下拉菜单, 当前状态:', this.showDropdown);
       this.showDropdown = !this.showDropdown;
-      console.log('切换后下拉菜单状态:', this.showDropdown);
     },
     
     handleOutsideClick(event) {

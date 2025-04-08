@@ -99,10 +99,6 @@
         </button>
       </div>
     </div>
-    
-    <div v-if="successMessage" class="success-toast">
-      {{ successMessage }}
-    </div>
   </div>
 </template>
 
@@ -125,7 +121,6 @@ export default {
       submitLoading: false,
       error: '',
       passwordError: '',
-      successMessage: ''
     };
   },
   
@@ -193,6 +188,10 @@ export default {
         this.form.confirmPassword = '';
         
         this.showSuccessMessage(this.$t('profile.profileSaved'));
+        // 延迟关闭，让用户有时间看到成功消息
+        setTimeout(() => {
+          this.$emit('close');
+        }, 500);
       } catch (error) {
         if (error.response?.data?.error?.includes('password')) {
           this.passwordError = error.response.data.error || this.$t('common.error');
@@ -206,10 +205,7 @@ export default {
     
     // 显示成功消息
     showSuccessMessage(message) {
-      this.successMessage = message;
-      setTimeout(() => {
-        this.successMessage = '';
-      }, 3000);
+     this.$message.success(message);
     }
   }
 };
