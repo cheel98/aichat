@@ -40,12 +40,14 @@ func SetupRoutes(r *gin.Engine) {
 		// 聊天相关的需认证路由
 		chat := private.Group("/chat")
 		{
-			chat.POST("/sessions", handlers.CreateSessionHandler)       // 创建会话
-			chat.GET("/sessions", handlers.GetSessionsHandler)          // 获取会话列表
-			chat.GET("/sessions/:id", handlers.GetSessionHandler)       // 获取会话详情
-			chat.PUT("/sessions/:id", handlers.UpdateSessionHandler)    // 更新会话
-			chat.DELETE("/sessions/:id", handlers.DeleteSessionHandler) // 删除会话
-			chat.POST("/sessions/:id", handlers.SendMessageHandler)     // 发送消息（流式返回）
+			chat.POST("/sessions", handlers.CreateSessionHandler)           // 创建会话
+			chat.GET("/sessions", handlers.GetSessionsHandler)              // 获取会话列表
+			chat.GET("/sessions/:id", handlers.GetSessionHandler)           // 获取会话详情
+			chat.PUT("/sessions/:id", handlers.UpdateSessionHandler)        // 更新会话
+			chat.DELETE("/sessions/:id", handlers.DeleteSessionHandler)     // 删除会话
+			chat.POST("/sessions/:id", handlers.SendMessageHandler)         // 发送消息（流式返回）
+			chat.POST("/retry", handlers.RetryMessageHandler)               // 重试生成回答
+			chat.PUT("/response/active", handlers.SetActiveResponseHandler) // or /response/active 设置活跃回答
 		}
 	}
 }

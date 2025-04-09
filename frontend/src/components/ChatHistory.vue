@@ -37,9 +37,38 @@
             {{ formatDate(conversation.UpdatedAt) }}
           </div>
         </div>
-        <button class="delete-btn" @click.stop="confirmDelete(conversation.session_id)">
-          <i class="bi bi-trash3"></i>
-        </button>
+        <div class="conversation-actions">
+          <button class="action-btn" @click.stop="toggleActionMenu(conversation.session_id)">
+            <i class="bi bi-three-dots-vertical"></i>
+          </button>
+          <div v-if="activeActionMenu === conversation.session_id" class="action-menu">
+            <button class="menu-item" @click.stop="startRename(conversation)">
+              <i class="bi bi-pencil"></i> {{ $t('history.rename') }}
+            </button>
+            <button class="menu-item delete" @click.stop="confirmDelete(conversation.session_id)">
+              <i class="bi bi-trash3"></i> {{ $t('history.delete') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 重命名对话框 -->
+    <div v-if="showRenameModal" class="rename-modal">
+      <div class="modal-content">
+        <h3>{{ $t('history.renameTitle') }}</h3>
+        <input 
+          type="text" 
+          v-model="newConversationTitle" 
+          class="rename-input"
+          :placeholder="$t('history.renamePlaceholder')"
+          @keyup.enter="renameConversation"
+          ref="renameInput"
+        >
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="cancelRename">{{ $t('common.cancel') }}</button>
+          <button class="btn-save" @click="renameConversation">{{ $t('common.save') }}</button>
+        </div>
       </div>
     </div>
     
@@ -66,12 +95,23 @@ export default {
       loading: true,
       selectedConversationId: null,
       showDeleteConfirm: false,
-      conversationToDelete: null
+      conversationToDelete: null,
+      showRenameModal: false,
+      newConversationTitle: '',
+      activeActionMenu: null,
+      conversationToRename: null
     }
   },
   
   created() {
     this.fetchConversations();
+    // 添加全局点击事件监听器，用于关闭操作菜单
+    document.addEventListener('click', this.handleClickOutside);
+  },
+  
+  beforeUnmount() {
+    // 组件销毁前移除事件监听器
+    document.removeEventListener('click', this.handleClickOutside);
   },
   
   methods: {
@@ -175,6 +215,59 @@ export default {
       }
       
       return null;
+    },
+    
+    toggleActionMenu(id) {
+      this.activeActionMenu = this.activeActionMenu === id ? null : id;
+    },
+    
+    startRename(conversation) {
+      this.newConversationTitle = conversation.title || '';
+      this.showRenameModal = true;
+      this.conversationToRename = conversation.session_id;
+      // 关闭操作菜单
+      this.activeActionMenu = null;
+    },
+    
+    cancelRename() {
+      this.showRenameModal = false;
+      this.newConversationTitle = '';
+      this.conversationToRename = null;
+    },
+    
+    async renameConversation() {
+      if (!this.conversationToRename) return;
+      
+      try {
+        const response = await apiClient.put(`${API_BASE_URL}/api/chat/sessions/${this.conversationToRename}`, {
+          title: this.newConversationTitle
+        });
+        if (response.status !== 200) {
+          throw new Error(this.$t('history.renameError'));
+        }
+        // 更新本地会话列表
+        const index = this.conversations.findIndex(conv => conv.session_id === this.conversationToRename);
+        if (index !== -1) {
+          this.conversations[index].title = this.newConversationTitle;
+        }
+        
+        // 如果重命名的是当前选中的会话，触发更新事件以更新页面标题
+        if (this.selectedConversationId === this.conversationToRename) {
+          this.$emit('conversation-updated');
+        }
+      } catch (error) {
+        console.error(this.$t('history.renameErrorLog'), error);
+      } finally {
+        this.showRenameModal = false;
+        this.newConversationTitle = '';
+        this.conversationToRename = null;
+      }
+    },
+    handleClickOutside(event) {
+      // 如果有打开的操作菜单，且点击的不是菜单内的元素，则关闭菜单
+      if (this.activeActionMenu && !event.target.closest('.conversation-actions')) {
+        this.activeActionMenu = null;
+      }
     },
   }
 }
@@ -330,33 +423,153 @@ export default {
   color: var(--text-secondary);
 }
 
-.delete-btn {
-  visibility: hidden;
+.conversation-actions {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.action-btn {
   background: none;
   border: none;
   color: var(--text-secondary);
   padding: 0;
-  margin-left: 8px;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   flex-shrink: 0;
+  visibility: hidden;
+  border-radius: 50%;
+  transition: all 0.2s;
 }
 
-.delete-btn:hover {
-  color: var(--danger-color, #dc3545);
-}
-
-.conversation-item:hover .delete-btn {
+.conversation-item:hover .action-btn {
   visibility: visible;
 }
 
-.icon-delete {
-  display: none;
+.action-btn:hover {
+  color: var(--primary-color);
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.action-menu {
+  position: absolute;
+  top: 0;
+  right: 30px;
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  width: 140px;
+  text-align: left;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  color: var(--text-color);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.menu-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.menu-item.delete {
+  color: var(--danger-color, #dc3545);
+}
+
+.rename-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--card-bg);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 300px;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.rename-input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.rename-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-cancel, .btn-save {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-cancel {
+  background-color: var(--ai-message-bg, #f5f5f5);
+  color: var(--text-color);
+}
+
+.btn-cancel:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.btn-save {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-save:hover {
+  background-color: var(--secondary-color, #0056b3);
 }
 
 .delete-confirm {
@@ -382,18 +595,6 @@ export default {
 .delete-actions {
   display: flex;
   justify-content: space-between;
-}
-
-.btn-cancel, .btn-delete {
-  padding: 8px 16px;
-  border-radius: 4px;
-  border: none;
-  font-size: 14px;
-}
-
-.btn-cancel {
-  background-color: var(--ai-message-bg);
-  color: var(--text-color);
 }
 
 .btn-delete {

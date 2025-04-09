@@ -81,7 +81,13 @@ export default {
     fetchError: 'Failed to fetch conversations',
     fetchErrorLog: 'Error fetching conversations:',
     deleteError: 'Failed to delete conversation',
-    deleteErrorLog: 'Error deleting conversation:'
+    deleteErrorLog: 'Error deleting conversation:',
+    rename: 'Rename',
+    delete: 'Delete',
+    renameTitle: 'Rename Conversation',
+    renamePlaceholder: 'Enter new conversation name',
+    renameError: 'Failed to rename conversation',
+    renameErrorLog: 'Error renaming conversation:'
   },
   auth: {
     welcome: 'Welcome to Raspberry',

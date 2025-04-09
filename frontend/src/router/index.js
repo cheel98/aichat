@@ -27,7 +27,7 @@ const routes = [
     component: Home,
     meta: {
       requiresAuth: true,
-      title: '智能对话'
+      title: '主页'
     },
     props: route => ({ 
       conversationId: route.query.id 

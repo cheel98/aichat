@@ -38,6 +38,7 @@
           @select-conversation="loadConversation"
           @new-chat="startNewChat"
           @toggle-sidebar="toggleSidebar"
+          @conversation-updated="handleConversationUpdate"
           class="sidebar"
           ref="chatHistory"
         />

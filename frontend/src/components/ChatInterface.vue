@@ -32,7 +32,45 @@
             </div>
           </div>
           <div :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']">
-            <div v-if="message.role === 'user'">{{ message.content }}</div>
+            <div v-if="message.role === 'user'">
+              <!-- 编辑模式下显示输入框，否则显示消息内容 -->
+              <div v-if="editingMessageIndex === index" class="user-message-content edit-input-container">
+                <textarea
+                  v-model="editingContent"
+                  @keydown="handleEditKeyDown($event, index, message.message_id)"
+                  rows="1"
+                  :ref="`editTextarea-${index}`"
+                  class="edit-textarea"
+                  @input="autoResizeEdit(index)"
+                ></textarea>
+                <div class="edit-actions">
+                  <button @click="cancelEdit" class="edit-cancel-btn">取消</button>
+                  <button @click="saveEdit(index, message.message_id)" class="edit-save-btn">保存并发送</button>
+                </div>
+              </div>
+              <div v-else class="user-message-content">
+                <span class="message-text">{{ message.content }}</span>
+                <!-- 用户消息控制按钮 -->
+                <div class="user-message-controls">
+                  <button 
+                    @click="editUserMessage(index, message.content, message.message_id)" 
+                    class="edit-button" 
+                    :disabled="loading"
+                    title="修改问题"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button 
+                    @click="regenerateResponse(message.message_id, index)" 
+                    class="regenerate-button" 
+                    :disabled="loading"
+                    title="重新生成回答"
+                  >
+                    <i class="bi bi-arrow-repeat"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
             <div v-else>
               <!-- 检查是否有思考内容 -->
               <template v-if="message.thinkingContent">
@@ -56,6 +94,35 @@
               <template v-else>
                 <div v-html="renderMarkdown(message.content)" class="markdown-content"></div>
               </template>
+              
+              <!-- AI回复的控制按钮 -->
+              <div class="ai-response-controls">
+                <!-- 只有当有多个回答时才显示版本选择 -->
+                <div v-if="message.alternative_responses && message.alternative_responses.length > 0" class="response-versions">
+                  <span class="versions-label">选择回答版本:</span>
+                  <div class="version-buttons">
+                    <!-- 原始回答 -->
+                    <button 
+                      @click="selectResponseVersion(message.message_id, 1)" 
+                      :class="['version-btn', message.is_active ? 'active' : '']"
+                      title="原始回答"
+                    >
+                      1
+                    </button>
+                    
+                    <!-- 其他回答 -->
+                    <button 
+                      v-for="(response, rIndex) in message.alternative_responses" 
+                      :key="'r-' + rIndex"
+                      @click="selectResponseVersion(message.message_id, response.version)" 
+                      :class="['version-btn', response.is_active ? 'active' : '']"
+                      :title="`回答 ${response.version}`"
+                    >
+                      {{ response.version }}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -126,6 +193,7 @@ import { marked } from 'marked'
 import { API_BASE_URL } from '../config'
 import apiClient from '../services/api'
 import { ElMessage } from 'element-plus'
+import { v4 as uuidv4 } from 'uuid'
 
 export default {
   name: 'ChatInterface',
@@ -145,7 +213,12 @@ export default {
       currentConversationId: null,
       deepThink: false,
       collapsedThinking: {}, // 追踪每个消息的折叠状态
-      thinkingIndex: -1 // 思考内容索引
+      thinkingIndex: -1, // 思考内容索引
+      retryingMessageId: null, // 当前正在重试的消息ID
+      pendingResponseVersion: null, // 等待设置为激活的响应版本
+      editingMessageIndex: -1, // 当前正在编辑的消息索引
+      editingMessageId: null, // 当前正在编辑的消息ID
+      editingContent: '' // 正在编辑的内容
     }
   },
   
@@ -200,10 +273,12 @@ export default {
         return
       }
       
+      // 正常发送新消息
       // 添加用户消息
       this.messages.push({
         role: 'user',
-        content: this.inputMessage
+        content: this.inputMessage,
+        message_id: uuidv4() // 生成客户端消息ID
       })
       
       this.loading = true
@@ -261,6 +336,8 @@ export default {
         }
         let currentContent = '';
         let thinkingContent = '';
+        let messageId = '';
+        let responseVersion = null;
         
         const response = await apiClient.post(apiUrl, {
           content: msg.content,
@@ -272,8 +349,18 @@ export default {
             if (chunk) {
               this.loading = false;
               
-              // 检查是否包含思考结束标记
-              if (chunk.includes('$thinkEnd$') && this.thinkingIndex !== -1) {
+              // 检查是否包含消息ID或版本标识
+              if (chunk.includes('$messageId$')) {
+                const parts = chunk.split('$messageId$');
+                messageId = parts[1] || '';
+                // 更新消息，将消息ID添加到内容中
+                currentContent = parts[0];
+              } else if (chunk.includes('$responseVersion$')) {
+                const parts = chunk.split('$responseVersion$');
+                responseVersion = parseInt(parts[1], 10) || null;
+                // 只保留内容部分
+                currentContent = parts[0];
+              } else if (chunk.includes('$thinkEnd$') && this.thinkingIndex !== -1) {
                 // 分离思考内容和回答内容
                 const parts = chunk.split('$thinkEnd$');
                 currentContent = parts[1] || '';
@@ -295,7 +382,9 @@ export default {
               this.messages[aiMessageIndex] = {
                 role: 'ai',
                 content: currentContent,
-                thinkingContent: thinkingContent
+                thinkingContent: thinkingContent,
+                message_id: messageId,
+                is_active: true
               };
               
               // 滚动到底部
@@ -303,6 +392,21 @@ export default {
             }
           }
         });
+        
+        // 如果是重试消息的响应
+        if (this.retryingMessageId && responseVersion) {
+          this.pendingResponseVersion = {
+            messageId: this.retryingMessageId,
+            version: responseVersion
+          };
+          
+          // 重置状态
+          this.retryingMessageId = null;
+          
+          // 更新消息列表
+          await this.loadConversation(this.currentConversationId);
+        }
+        
         // 流式传输完成，保存对话
         this.saveConversation();
       } catch (error) {
@@ -364,6 +468,15 @@ export default {
           });
           this.messages = processedMessages;
           this.currentConversationId = conversationId;
+          
+          // 如果有待处理的版本设置请求，立即处理
+          if (this.pendingResponseVersion) {
+            await this.selectResponseVersion(
+              this.pendingResponseVersion.messageId, 
+              this.pendingResponseVersion.version
+            );
+            this.pendingResponseVersion = null;
+          }
         }
       } catch (error) {
         console.error(this.$t('chat.loadHistoryErrorLog'), error);
@@ -452,6 +565,273 @@ export default {
     // 切换思考内容的显示/隐藏
     toggleThinking(index) {
       this.collapsedThinking[index] = !this.collapsedThinking[index];
+    },
+
+    // 编辑用户消息
+    editUserMessage(index, content, messageId) {
+      this.editingMessageIndex = index;
+      this.editingMessageId = messageId;
+      this.editingContent = content;
+      
+      // 聚焦输入框
+      this.$nextTick(() => {
+        const editTextarea = this.$refs[`editTextarea-${index}`];
+        if (editTextarea && editTextarea[0]) {
+          editTextarea[0].focus();
+          this.autoResizeEdit(index);
+        }
+      });
+    },
+    
+    // 取消编辑
+    cancelEdit() {
+      this.editingMessageIndex = -1;
+      this.editingMessageId = null;
+      this.editingContent = '';
+    },
+    
+    // 处理编辑框中的键盘事件
+    handleEditKeyDown(event, index, messageId) {
+      // Enter键发送消息，Shift+Enter添加换行符
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        this.saveEdit(index, messageId);
+      }
+    },
+    
+    // 编辑框自动调整高度
+    autoResizeEdit(index) {
+      const editTextarea = this.$refs[`editTextarea-${index}`];
+      if (!editTextarea || !editTextarea[0]) return;
+      
+      const textarea = editTextarea[0];
+      textarea.style.height = 'auto';
+      const newHeight = Math.min(textarea.scrollHeight, 120);
+      textarea.style.height = newHeight + 'px';
+    },
+    
+    // 保存编辑并发送
+    async saveEdit(index, messageId) {
+      if (!this.editingContent.trim() || this.loading) {
+        return;
+      }
+      
+      const originalContent = this.messages[index].content;
+      
+      // 更新用户消息内容
+      this.messages[index].content = this.editingContent.trim();
+      
+      // 如果内容没有变化，则不重新生成回答
+      if (originalContent === this.editingContent.trim()) {
+        this.cancelEdit();
+        return;
+      }
+      
+      // 删除此消息后面的所有回答
+      const userMessages = this.messages.filter(msg => msg.role === 'user');
+      const userIndex = userMessages.findIndex(msg => msg.message_id === messageId);
+      
+      if (userIndex !== -1 && userIndex < userMessages.length - 1) {
+        // 找到当前用户消息在所有消息中的索引
+        const nextUserMsgIndex = this.messages.findIndex(
+          (msg, i) => i > index && msg.role === 'user'
+        );
+        
+        if (nextUserMsgIndex !== -1) {
+          // 删除从当前消息的AI回复到下一条用户消息之前的所有消息
+          this.messages.splice(index + 1, nextUserMsgIndex - (index + 1));
+        } else {
+          // 删除从当前消息的AI回复到结尾的所有消息
+          this.messages.splice(index + 1);
+        }
+      } else {
+        // 如果是最后一条用户消息，只保留自己，删除后面的AI回复
+        if (index < this.messages.length - 1) {
+          this.messages.splice(index + 1);
+        }
+      }
+      
+      // 准备编辑后的内容
+      const editedContent = this.editingContent.trim();
+      
+      // 退出编辑模式
+      this.cancelEdit();
+      
+      // 保存会话以更新用户消息内容
+      await this.saveConversation();
+      
+      // 重新发送消息
+      this.loading = true;
+      
+      try {
+        // 准备API请求URL
+        const apiUrl = `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}`;
+        
+        // 标记当前是否在思考模式
+        if (this.deepThink) {
+          this.thinkingIndex = index + 1;
+        }
+        
+        let currentContent = '';
+        let thinkingContent = '';
+        let responseMessageId = '';
+        
+        const response = await apiClient.post(apiUrl, {
+          content: editedContent,
+          thinking: this.deepThink
+        }, {
+          responseType: 'stream',
+          onDownloadProgress: (progressEvent) => {
+            const chunk = progressEvent.event.target.response;
+            if (chunk) {
+              this.loading = false;
+              
+              // 检查是否包含消息ID或版本标识
+              if (chunk.includes('$messageId$')) {
+                const parts = chunk.split('$messageId$');
+                responseMessageId = parts[1] || '';
+                // 更新内容，去除ID部分
+                currentContent = parts[0] || '';
+              } else if (chunk.includes('$thinkEnd$') && this.thinkingIndex !== -1) {
+                // 分离思考内容和回答内容
+                const parts = chunk.split('$thinkEnd$');
+                thinkingContent = thinkingContent || '';
+                currentContent = parts[1] || '';
+                this.thinkingIndex = -1;
+              } else if (this.thinkingIndex !== -1) {
+                // 仍在思考模式，所有内容都是思考内容
+                thinkingContent += chunk;
+              } else if (chunk.includes('$thinkEnd$')) {
+                // 分离思考内容和回答内容
+                const parts = chunk.split('$thinkEnd$');
+                currentContent = parts[1] || '';
+              } else {
+                // 不在思考模式，所有内容都是回答内容
+                currentContent += chunk;
+              }
+              
+              // 如果是第一次接收响应，添加一个AI消息
+              if (!this.messages[index + 1] || this.messages[index + 1].role !== 'ai') {
+                this.messages.splice(index + 1, 0, {
+                  role: 'ai',
+                  content: currentContent,
+                  thinkingContent: thinkingContent,
+                  message_id: responseMessageId,
+                  is_active: true
+                });
+              } else {
+                // 更新现有AI消息
+                this.messages[index + 1] = {
+                  ...this.messages[index + 1],
+                  content: currentContent,
+                  thinkingContent: thinkingContent,
+                  message_id: responseMessageId,
+                  is_active: true
+                };
+              }
+              
+              // 滚动到底部
+              this.scrollToBottom();
+            }
+          }
+        });
+        
+        // 流式传输完成，保存对话
+        await this.saveConversation();
+      } catch (error) {
+        console.error(this.$t('chat.streamError'), error);
+        if (!this.messages[index + 1] || this.messages[index + 1].role !== 'ai') {
+          this.messages.splice(index + 1, 0, {
+            role: 'ai',
+            content: this.$t('chat.errorMessage') || '请求失败，请重试',
+            message_id: ''
+          });
+        }
+        this.loading = false;
+      }
+    },
+    
+    // 重新生成回答
+    regenerateResponse(messageId, userMessageIndex) {
+      // 找到关联的AI消息
+      const aiMessageIndex = userMessageIndex + 1;
+      
+      if (aiMessageIndex < this.messages.length && this.messages[aiMessageIndex].role === 'ai') {
+        // 提取AI消息ID
+        const aiMessageId = this.messages[aiMessageIndex].message_id;
+        
+        // 调用重试生成功能
+        this.retryMessage(aiMessageId);
+      } else {
+        // 如果没有找到AI消息，尝试直接使用用户消息重新生成
+        this.retryMessage(messageId);
+      }
+    },
+
+    // 重试生成新回答
+    async retryMessage(messageId) {
+      if (this.loading) return;
+      
+      this.loading = true;
+      this.retryingMessageId = messageId;
+      
+      try {
+        await apiClient.post('/chat/retry', {
+          message_id: messageId,
+          thinking: this.deepThink
+        }, {
+          responseType: 'stream',
+          onDownloadProgress: (progressEvent) => {
+            const chunk = progressEvent.event.target.response;
+            if (chunk) {
+              this.loading = false;
+              
+              // 检查是否包含版本信息
+              if (chunk.includes('$responseVersion$')) {
+                const parts = chunk.split('$responseVersion$');
+                const version = parseInt(parts[1], 10) || null;
+                
+                if (version) {
+                  this.pendingResponseVersion = {
+                    messageId: messageId,
+                    version: version
+                  };
+                }
+              }
+            }
+          }
+        });
+        
+        // 重新加载会话以显示新回答
+        await this.loadConversation(this.currentConversationId);
+      } catch (error) {
+        console.error('重试消息失败:', error);
+        ElMessage.error(this.$t('chat.retryError') || '重试失败');
+        this.loading = false;
+        this.retryingMessageId = null;
+      }
+    },
+    
+    // 选择特定版本的回答
+    async selectResponseVersion(messageId, version) {
+      if (this.loading) return;
+      
+      try {
+        const response = await apiClient.put('/chat/response/active', {
+          message_id: messageId,
+          version: version
+        });
+        
+        if (response.status === 200) {
+          // 重新加载会话以显示选中的回答
+          await this.loadConversation(this.currentConversationId);
+        } else {
+          throw new Error('设置活跃版本失败');
+        }
+      } catch (error) {
+        console.error('设置活跃版本失败:', error);
+        ElMessage.error(this.$t('chat.setActiveError') || '切换版本失败');
+      }
     }
   },
 
@@ -605,6 +985,32 @@ export default {
   background-color: var(--user-message-bg);
   color: white;
   border-top-right-radius: 4px;
+  width: auto;
+  max-width: max-content;
+  box-sizing: border-box;
+}
+
+.user-message > div {
+  width: 100%;
+  word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.user-message > div > span {
+  align-self: flex-start;
+}
+
+.user-message > div > .user-message-controls {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.user-message-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 .ai-message {
@@ -673,6 +1079,7 @@ export default {
   border-radius: 24px;
   padding: 10px 16px;
   transition: background-color 0.3s, box-shadow 0.3s;
+  position: relative;
 }
 
 .chat-input:focus-within {
@@ -950,6 +1357,18 @@ kbd {
 }
 
 @media (max-width: 768px) {
+  .message {
+    max-width: 85%;
+  }
+  
+  .user-message {
+    max-width: max-content;
+  }
+  
+  .edit-input-container {
+    max-width: 100%;
+  }
+  
   .thinking-container {
     padding: 12px;
   }
@@ -961,5 +1380,193 @@ kbd {
   .collapse-btn {
     font-size: 0.7rem;
   }
+}
+
+.ai-response-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.retry-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retry-button:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--primary-color);
+}
+
+.retry-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.response-versions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.versions-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.version-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.version-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  background-color: var(--chat-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.version-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.version-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.user-message-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.message-text {
+  text-align: left;
+  align-self: flex-start;
+  margin-bottom: 4px;
+}
+
+.user-message-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  width: 100%;
+}
+
+.user-message:hover .user-message-controls {
+  opacity: 1;
+}
+
+.edit-button, .regenerate-button {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.edit-button:hover, .regenerate-button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.edit-button:disabled, .regenerate-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.edit-input-container {
+  width: 100%;
+  position: relative;
+  max-width: 100%; /* 使用100%而不是inherit以确保与父元素宽度一致 */
+  min-width: unset; /* 移除最小宽度限制，使其完全跟随气泡宽度 */
+}
+
+.edit-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: none;
+  padding: 4px 0;
+  outline: none;
+  font-family: var(--font-family);
+  min-height: 24px;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-sizing: border-box;
+  margin: 0; /* 移除默认边距 */
+  display: block; /* 防止奇怪的内联块行为 */
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%; /* 确保按钮区域与文本框等宽 */
+}
+
+.edit-cancel-btn, .edit-save-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-cancel-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.edit-save-btn {
+  background: white;
+  color: var(--user-message-bg);
+  font-weight: 500;
+}
+
+.edit-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.edit-save-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
 }
 </style> 

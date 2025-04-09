@@ -81,7 +81,13 @@ export default {
     fetchError: '获取历史对话失败',
     fetchErrorLog: '获取历史对话出错:',
     deleteError: '删除会话失败',
-    deleteErrorLog: '删除会话出错:'
+    deleteErrorLog: '删除会话出错:',
+    rename: '重命名',
+    delete: '删除',
+    renameTitle: '重命名对话',
+    renamePlaceholder: '输入新的对话名称',
+    renameError: '重命名失败',
+    renameErrorLog: '重命名对话出错:'
   },
   auth: {
     welcome: '欢迎使用 AI 聊天',

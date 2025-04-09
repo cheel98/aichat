@@ -88,6 +88,7 @@ func InitDB() error {
 		&models.UserSettings{},
 		&models.ChatSession{},
 		&models.ChatMessage{},
+		&models.AIResponse{},
 	)
 	if err != nil {
 		return err
