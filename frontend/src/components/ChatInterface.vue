@@ -165,6 +165,13 @@ export default {
   },
   
   methods: {
+    logout() {
+      this.messages = [];
+      this.currentConversationId = null;
+      this.inputMessage = '';
+      this.collapsedThinking = {};
+      this.thinkingIndex = -1;
+    },
     renderMarkdown(content) {
       try {
         return marked(content, { breaks: true, gfm: true })
@@ -356,7 +363,6 @@ export default {
             return message;
           });
           this.messages = processedMessages;
-          console.log(this.messages)
           this.currentConversationId = conversationId;
         }
       } catch (error) {
@@ -422,8 +428,7 @@ export default {
         this.$emit('conversation-updated');
         
       } catch (error) {
-        console.error('保存对话出错:', error);
-        ElMessage.error(this.$t('chat.saveError') || '保存对话失败');
+        this.$message.error(this.$t('chat.saveError') || '保存对话失败');
       }
     },
     

@@ -19,3 +19,4 @@ deepseek:
   base_url: https://api.deepseek.com/chat/completions
   model: deepseek-chat 
   reasoner_model: deepseek-reasoner 
+  max_token: 300

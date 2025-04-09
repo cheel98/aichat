@@ -42,16 +42,16 @@
         
         <div class="form-group">
           <label for="password">{{ $t('auth.password') }}</label>
-          <div class="input-container">
-            <i class="bi bi-lock"></i>
-            <input 
-              type="password" 
-              id="password" 
-              v-model="loginForm.password" 
-              :placeholder="$t('auth.passwordPlaceholder')"
-              required
-            />
-          </div>
+          <el-input
+            v-model="loginForm.password"
+            :placeholder="$t('auth.passwordPlaceholder')"
+            :show-password="true"
+            class="custom-el-input"
+          >
+            <template #prefix>
+              <i class="bi bi-lock"></i>
+            </template>
+          </el-input>
         </div>
         
         <div v-if="loginError" class="error-message">{{ loginError }}</div>
@@ -103,32 +103,32 @@
         
         <div class="form-group">
           <label for="reg-password">{{ $t('auth.password') }}</label>
-          <div class="input-container">
-            <i class="bi bi-lock"></i>
-            <input 
-              type="password" 
-              id="reg-password" 
-              v-model="registerForm.password" 
-              :placeholder="$t('auth.setPasswordPlaceholder')"
-              required
-              minlength="6"
-            />
-          </div>
+          <el-input
+            v-model="registerForm.password"
+            :placeholder="$t('auth.setPasswordPlaceholder')"
+            :show-password="true"
+            minlength="6"
+            class="custom-el-input"
+          >
+            <template #prefix>
+              <i class="bi bi-lock"></i>
+            </template>
+          </el-input>
         </div>
         
         <div class="form-group">
           <label for="confirm-password">{{ $t('auth.confirmPassword') }}</label>
-          <div class="input-container">
-            <i class="bi bi-lock"></i>
-            <input 
-              type="password" 
-              id="confirm-password" 
-              v-model="registerForm.confirmPassword" 
-              :placeholder="$t('auth.confirmPasswordPlaceholder')"
-              required
-              minlength="6"
-            />
-          </div>
+          <el-input
+            v-model="registerForm.confirmPassword"
+            :placeholder="$t('auth.confirmPasswordPlaceholder')"
+            :show-password="true"
+            minlength="6"
+            class="custom-el-input"
+          >
+            <template #prefix>
+              <i class="bi bi-lock"></i>
+            </template>
+          </el-input>
           <div v-if="passwordError" class="field-error">
             {{ passwordError }}
           </div>
@@ -152,9 +152,13 @@
 
 <script>
 import userStore from '../store/userStore';
+import { ElInput } from 'element-plus';
 
 export default {
   name: 'UserAuth',
+  components: {
+    ElInput
+  },
   emits: ['auth-success'],
   
   data() {
@@ -409,6 +413,7 @@ label {
 
 .input-container input {
   padding-left: 40px;
+  padding-right: 45px;
   height: 46px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
@@ -482,5 +487,26 @@ label {
 .bi {
   font-size: 18px;
   color: var(--text-secondary);
+}
+
+.custom-el-input {
+  width: 100%;
+}
+
+.custom-el-input :deep(.el-input__wrapper) {
+  padding-left: 0;
+  background-color: var(--input-bg);
+  border-color: var(--border-color);
+  border-radius: 6px;
+}
+
+.custom-el-input :deep(.el-input__inner) {
+  height: 46px;
+  color: var(--text-color);
+  font-size: 15px;
+}
+
+.custom-el-input :deep(.el-input__prefix) {
+  padding-left: 12px;
 }
 </style> 

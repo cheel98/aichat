@@ -85,6 +85,15 @@ const actions = {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       
+      // 清除所有与聊天相关的本地存储数据
+      // 查找所有可能与聊天相关的本地存储项并清除
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.includes('chat') || key.includes('conversation') || key.includes('message')) {
+          localStorage.removeItem(key);
+        }
+      }
+      
       state.isAuthenticated = false;
       state.user = null;
       state.settings = null;

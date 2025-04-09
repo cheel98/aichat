@@ -27,7 +27,7 @@ const routes = [
     component: Home,
     meta: {
       requiresAuth: true,
-      title: '主页'
+      title: '智能对话'
     },
     props: route => ({ 
       conversationId: route.query.id 
@@ -51,6 +51,10 @@ const router = createRouter({
 
 // 标题更新
 router.afterEach((to) => {
+  // 如果是主页且有会话ID，则不在这里设置标题（由组件自己设置）
+  if (to.name === 'Home' && to.query.id) {
+    return;
+  }
   document.title = to.meta.title || '智能对话';
 });
 

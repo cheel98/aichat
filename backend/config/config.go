@@ -45,6 +45,7 @@ type DeepSeekConfig struct {
 	BaseURL       string `yaml:"base_url"`
 	Model         string `yaml:"model"`
 	ReasonerModel string `yaml:"reasoner_model"`
+	MaxTokens     uint   `yaml:"max_tokens"`
 }
 
 // DSN 生成数据库连接字符串

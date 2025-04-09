@@ -1,6 +1,7 @@
 package services
 
 import (
+	"aiChat/backend/config"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -115,7 +116,7 @@ func (s *DeepSeekService) StreamChatResponse(userMessage string, writer io.Write
 			},
 		},
 		Temperature: 0.7,
-		MaxTokens:   100,
+		MaxTokens:   int(config.AppConfig.DeepSeek.MaxTokens),
 		Stream:      true, // 启用流式响应
 	}
 

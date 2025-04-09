@@ -25,7 +25,7 @@
       <div class="header-right">
         <ThemeToggle />
         <LanguageToggle />
-        <UserMenu @navigate="handleNavigation" />
+        <UserMenu @navigate="handleNavigation" @logout="handleLogout" />
       </div>
     </header>
     
@@ -120,6 +120,11 @@ export default {
     closeSettingsModal() {
       
     },
+    handleLogout() {
+      this.$refs.chatHistory.logout();
+      this.$refs.chatInterface.logout();
+      this.currentConversationId = null;
+    },
     handleNavigation(page) {
       switch (page) {
         case 'profile':
@@ -176,6 +181,25 @@ export default {
       if (this.$refs.chatHistory) {
         this.$refs.chatHistory.fetchConversations();
       }
+      
+      // 如果当前有活跃对话，更新页面标题
+      if (this.currentConversationId) {
+        this.updatePageTitle(this.currentConversationId);
+      }
+    },
+    
+    // 更新页面标题的方法
+    async updatePageTitle(conversationId) {
+      try {
+        if (this.$refs.chatHistory) {
+          const conversation = await this.$refs.chatHistory.getConversationById(conversationId);
+          if (conversation && conversation.title) {
+            document.title = conversation.title;
+          }
+        }
+      } catch (error) {
+        console.error('更新页面标题失败', error);
+      }
     },
     
     // 从URL中获取会话ID
@@ -200,6 +224,30 @@ export default {
       } else if (!newId && this.currentConversationId) {
         this.startNewChat();
       }
+    },
+    
+    // 监听对话ID变化，更新页面标题
+    currentConversationId: {
+      handler: async function(newId) {
+        if (newId) {
+          try {
+            // 假设可以通过 this.$refs.chatHistory 获取会话标题
+            // 或者通过 chatInterface 获取
+            const conversation = await this.$refs.chatHistory.getConversationById(newId);
+            if (conversation && conversation.title) {
+              document.title = conversation.title || this.$t('app.title');
+            } else {
+              document.title = this.$t('app.title');
+            }
+          } catch (error) {
+            console.error('获取会话标题失败', error);
+            document.title = this.$t('app.title');
+          }
+        } else {
+          document.title = this.$t('app.title');
+        }
+      },
+      immediate: true
     }
   }
 };

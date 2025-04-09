@@ -75,6 +75,12 @@ export default {
   },
   
   methods: {
+    logout() {
+      this.conversations = [];
+      this.selectedConversationId = null;
+      this.showDeleteConfirm = false;
+      this.conversationToDelete = null;
+    },
     async fetchConversations() {
       this.loading = true;
       try {
@@ -90,7 +96,6 @@ export default {
         this.loading = false;
       }
     },
-    
     selectConversation(id) {
       this.selectedConversationId = id;
       this.$emit('select-conversation', id);
@@ -149,6 +154,27 @@ export default {
       } else {
         return date.toLocaleDateString(this.$i18n.state.currentLanguage, { month: 'short', day: 'numeric' });
       }
+    },
+    
+    // 根据ID获取会话信息
+    async getConversationById(id) {
+      // 首先从本地缓存查找
+      const conversation = this.conversations.find(conv => conv.session_id === id);
+      if (conversation) {
+        return conversation;
+      }
+      
+      // 如果本地没有找到，从服务器获取
+      try {
+        const response = await apiClient.get(`/chat/sessions/${id}`);
+        if (response.status === 200 && response.data) {
+          return response.data;
+        }
+      } catch (error) {
+        console.error('获取会话详情失败', error);
+      }
+      
+      return null;
     },
   }
 }

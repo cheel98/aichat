@@ -107,6 +107,8 @@ export default {
       
       try {
         await userStore.logout();
+        // 通知父组件用户已登出，需要清除聊天记录
+        this.$emit('logout');
       } catch (error) {
         console.error(this.$t('app.logoutError'), error);
       }
