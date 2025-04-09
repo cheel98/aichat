@@ -18,7 +18,7 @@ func SaveChatSession(session *models.ChatSession) error {
 }
 
 // GetSessionsByUserID 获取用户的所有会话
-func GetSessionsByUserID(userID uint64) ([]models.ChatSession, error) {
+func GetSessionsByUserID(userID uint) ([]models.ChatSession, error) {
 	db := database.GetDB()
 	var sessions []models.ChatSession
 

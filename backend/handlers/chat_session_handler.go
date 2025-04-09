@@ -29,7 +29,7 @@ func CreateSessionHandler(c *gin.Context) {
 	// 创建新会话
 	session := models.ChatSession{
 		SessionID: uuid.New().String(), // 生成唯一会话ID
-		UserID:    userID.(uint64),
+		UserID:    userID.(uint),
 		Title:     req.Title,
 		IsPinned:  0,
 	}
@@ -59,7 +59,7 @@ func GetSessionsHandler(c *gin.Context) {
 	}
 
 	// 调用服务获取会话列表
-	sessions, err := services.GetSessionsByUserID(userID.(uint64))
+	sessions, err := services.GetSessionsByUserID(userID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取会话列表失败"})
 		return
@@ -94,7 +94,7 @@ func GetSessionHandler(c *gin.Context) {
 	}
 
 	// 验证会话所有权
-	if session.UserID != userID.(uint64) {
+	if session.UserID != userID.(uint) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问此会话"})
 		return
 	}
@@ -142,7 +142,7 @@ func UpdateSessionHandler(c *gin.Context) {
 	}
 
 	// 验证会话所有权
-	if session.UserID != userID.(uint64) {
+	if session.UserID != userID.(uint) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权修改此会话"})
 		return
 	}
@@ -192,7 +192,7 @@ func DeleteSessionHandler(c *gin.Context) {
 	}
 
 	// 验证会话所有权
-	if session.UserID != userID.(uint64) {
+	if session.UserID != userID.(uint) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权删除此会话"})
 		return
 	}
@@ -216,22 +216,14 @@ func SendMessageHandler(c *gin.Context) {
 
 	var req struct {
 		Content      string `json:"content" binding:"required"`
-		Message      string `json:"message"`       // 兼容旧版API
-		DeepThinking bool   `json:"deep_thinking"` // 是否使用深度思考模式（使用reasoner模型）
+		DeepThinking bool   `json:"thinking"` // 是否使用深度思考模式（使用reasoner模型）
 	}
 
 	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求数据"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求数据格式有误"})
 		return
 	}
-
-	// 兼容处理，如果没有content但有message字段，则使用message
-	content := req.Content
-	if content == "" && req.Message != "" {
-		content = req.Message
-	}
-
-	if content == "" {
+	if req.Content == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "消息内容不能为空"})
 		return
 	}
@@ -250,17 +242,17 @@ func SendMessageHandler(c *gin.Context) {
 		return
 	}
 
-	if session.UserID != userID.(uint64) {
+	if session.UserID != userID.(uint) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问此会话"})
 		return
 	}
 
 	// 创建用户消息
 	userMessage := models.ChatMessage{
-		UserID:    userID.(uint64),
+		UserID:    userID.(uint),
 		SessionID: sessionID,
 		Role:      "user",
-		Content:   content,
+		Content:   req.Content,
 	}
 
 	// 保存用户消息
@@ -286,7 +278,7 @@ func SendMessageHandler(c *gin.Context) {
 	aiService := services.GetDefaultDeepSeekService()
 
 	// 调用流式API获取回复，传递deep_thinking参数
-	aiReply, err := aiService.StreamChatResponse(content, flushWriter, req.DeepThinking)
+	aiReply, aiThinking, err := aiService.StreamChatResponse(req.Content, flushWriter, req.DeepThinking)
 	if err != nil {
 		c.Error(err)
 		return
@@ -294,10 +286,11 @@ func SendMessageHandler(c *gin.Context) {
 
 	// 创建AI消息并保存到数据库（使用完整的回复内容）
 	aiMessage := models.ChatMessage{
-		UserID:    0, // AI消息的UserID为0
-		SessionID: sessionID,
-		Role:      "ai",
-		Content:   aiReply,
+		UserID:       0, // AI消息的UserID为0
+		SessionID:    sessionID,
+		Role:         "ai",
+		ThinkContent: aiThinking,
+		Content:      aiReply,
 	}
 
 	// 保存AI消息
@@ -347,7 +340,7 @@ func GetMessagesHandler(c *gin.Context) {
 		return
 	}
 
-	if session.UserID != userID.(uint64) {
+	if session.UserID != userID.(uint) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问此会话"})
 		return
 	}

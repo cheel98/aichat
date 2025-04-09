@@ -14,6 +14,7 @@ export default {
     send: '发送',
     regenerate: '重新生成',
     thinking: '思考中...',
+    thinkend: '思考',
     copy: '复制',
     saveToHistory: '保存到历史记录',
     errorMessage: '抱歉，发生了错误，请重试。',
@@ -22,6 +23,8 @@ export default {
     me: '我',
     enterHint: '按 Enter 发送，Shift+Enter 换行',
     think: '思考模式',
+    showThinking: '显示思考过程',
+    hideThinking: '隐藏思考过程',
     exampleQuestions: [
       '介绍一下量子计算的基本原理',
       '帮我写一篇关于人工智能的短文',

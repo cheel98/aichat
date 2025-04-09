@@ -34,7 +34,7 @@
             {{ conversation.title || $t('history.unnamed') }}
           </div>
           <div class="conversation-date">
-            {{ formatDate(conversation.updated_at) }}
+            {{ formatDate(conversation.UpdatedAt) }}
           </div>
         </div>
         <button class="delete-btn" @click.stop="confirmDelete(conversation.session_id)">
@@ -121,7 +121,6 @@ export default {
         if (response.status !== 200) {
           throw new Error(this.$t('history.deleteError'));
         }
-        
         // 从列表中移除已删除的会话
         this.conversations = this.conversations.filter(
           conv => conv.session_id !== this.conversationToDelete

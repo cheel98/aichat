@@ -12,43 +12,33 @@ const apiClient = axios.create({
 // 请求拦截器，添加认证头
 apiClient.interceptors.request.use(
   (config) => {
+    // 如果是登录请求，则不添加认证头
+    if (config.url.includes('/auth')) {
+      return config;
+    }
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }else{
+      // 如果token不存在，则拦截请求
+      return Promise.reject(new Error('未登录'));
     }
     return config;
   },
 );
-// 响应拦截器，统一处理错误
+// 响应拦截器，处理认证错误
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    // 处理网络错误
-     // 忽略错误，将response原样返回给上层处理
-     if (error.response) {
-       // 如果服务器返回了响应，直接返回响应对象
-       return error.response;
-     } 
-     return  
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    return Promise.reject(error);
   }
 );
-
-// 响应拦截器，处理认证错误
-// apiClient.interceptors.response.use(
-//   (response) => {
-//     return response;
-//   },
-//   (error) => {
-//     if (error.response && error.response.status === 401) {
-//       localStorage.removeItem('token');
-//       localStorage.removeItem('user');
-//       window.location.href = '/login';
-//     }
-//     return Promise.reject(error);
-//   }
-// );
 
 // 用户认证相关API
 export const authAPI = {

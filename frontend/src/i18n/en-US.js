@@ -14,22 +14,25 @@ export default {
     send: 'Send',
     regenerate: 'Regenerate',
     thinking: 'Thinking...',
+    thinkend: 'Think',
     copy: 'Copy',
-    saveToHistory: 'Save to History',
+    saveToHistory: 'Save to history',
     errorMessage: 'Sorry, an error occurred. Please try again.',
     welcome: 'Welcome to Raspberry',
-    welcomeDesc: 'Start a conversation with AI, Raspberry will provide intelligent and interesting answers',
+    welcomeDesc: 'Start a conversation with AI, and Raspberry will provide intelligent and interesting responses',
     me: 'Me',
     enterHint: 'Press Enter to send, Shift+Enter for a new line',
     think: 'Think Mode',
+    showThinking: 'Show thinking',
+    hideThinking: 'Hide thinking',
     exampleQuestions: [
-      'Introduce the basic principles of quantum computing',
-      'Write a short article about artificial intelligence',
-      'How to improve programming efficiency?'
+      'Explain the basic principles of quantum computing',
+      'Help me write a short essay about artificial intelligence',
+      'How can I improve my programming efficiency?'
     ],
     markdownError: 'Markdown parsing error:',
     streamError: 'Stream response error:',
-    loadHistoryError: 'Failed to fetch conversation history',
+    loadHistoryError: 'Failed to load conversation history',
     loadHistoryErrorLog: 'Error loading conversation history:'
   },
   settings: {

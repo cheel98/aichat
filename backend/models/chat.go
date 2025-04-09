@@ -10,7 +10,7 @@ import (
 type ChatSession struct {
 	gorm.Model
 	SessionID string `gorm:"type:varchar(50);not null;unique" json:"session_id"`
-	UserID    uint64 `gorm:"not null" json:"user_id"`
+	UserID    uint   `gorm:"not null" json:"user_id"`
 	Title     string `gorm:"type:varchar(100);not null" json:"title"`
 	IsPinned  int    `gorm:"type:tinyint;default:0" json:"is_pinned"`
 	// 这些字段不存储在数据库中，用于前端显示
@@ -21,10 +21,11 @@ type ChatSession struct {
 // ChatMessage 聊天消息模型
 type ChatMessage struct {
 	gorm.Model
-	UserID    uint64 `gorm:"not null" json:"user_id"`
-	SessionID string `gorm:"type:varchar(50);not null" json:"session_id"`
-	Role      string `gorm:"type:varchar(20);not null" json:"role"` // user 或 ai
-	Content   string `gorm:"type:text;not null" json:"content"`
+	UserID       uint   `gorm:"not null" json:"user_id"`
+	SessionID    string `gorm:"type:varchar(50);not null" json:"session_id"`
+	Role         string `gorm:"type:varchar(20);not null" json:"role"` // user 或 ai
+	ThinkContent string `gorm:"type:text;not null" json:"think_content"`
+	Content      string `gorm:"type:text;not null" json:"content"`
 }
 
 // CreateSessionRequest 创建会话请求

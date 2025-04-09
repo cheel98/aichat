@@ -277,7 +277,6 @@ export default {
       }
       
       try {
-        console.log(registerData);
         await userStore.register(registerData);
         
         // 注册成功后提示并切换到登录页

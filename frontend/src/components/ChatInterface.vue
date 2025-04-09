@@ -33,7 +33,30 @@
           </div>
           <div :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']">
             <div v-if="message.role === 'user'">{{ message.content }}</div>
-            <div v-else v-html="renderMarkdown(message.content)" class="markdown-content"></div>
+            <div v-else>
+              <!-- 检查是否有思考内容 -->
+              <template v-if="message.thinkingContent">
+                <div class="thinking-container" :class="{ 'collapsed': !collapsedThinking[index] }">
+                  <div class="thinking-header">
+                    <i class="thinking-icon bi bi-lightbulb"></i>
+                    <span v-if="index !== thinkingIndex">{{ $t('chat.thinkend') }}</span>
+                    <span v-else>{{ $t('chat.thinking') }}</span>
+
+                    <button @click="toggleThinking(index)" class="collapse-btn">
+                      <i class="bi" :class="!collapsedThinking[index] ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
+                      {{ !collapsedThinking[index] ? $t('chat.showThinking') : $t('chat.hideThinking') }}
+                    </button>
+                  </div>
+                  <div v-show="collapsedThinking[index]" v-html="renderMarkdown(message.thinkingContent)" class="markdown-content thinking-content"></div>
+                </div>
+                <div class="answer-container">
+                  <div v-html="renderMarkdown(message.content)" class="markdown-content"></div>
+                </div>
+              </template>
+              <template v-else>
+                <div v-html="renderMarkdown(message.content)" class="markdown-content"></div>
+              </template>
+            </div>
           </div>
         </div>
         <div v-if="loading" class="message-wrapper ai-wrapper">
@@ -79,7 +102,7 @@
         <button 
           @click="toggleThinkMode" 
           class="think-button"
-          :class="{ 'active': isDeepThinking }"
+          :class="{ 'active': deepThink }"
         >
           <span class="think-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,7 +143,9 @@ export default {
       messages: [],
       loading: false,
       currentConversationId: null,
-      isDeepThinking: false
+      deepThink: false,
+      collapsedThinking: {}, // 追踪每个消息的折叠状态
+      thinkingIndex: -1 // 思考内容索引
     }
   },
   
@@ -180,20 +205,13 @@ export default {
       const aiMessageIndex = this.messages.length
       
       let msg = {
-        message: this.inputMessage,
-        conversation_id: this.currentConversationId,
-        deep_thinking: this.isDeepThinking
+        content: this.inputMessage,
+        thinking: this.deepThink
       }
 
       // 保存用户输入，然后清空输入框
       const userInput = this.inputMessage
       
-      // // 根据界面选择的语言添加提示词告知AI以什么语言回复
-      // if (this.$i18n.state.currentLanguage === 'zh-CN') {
-      //   msg.message = "请用中文回复以下内容：" + msg.message;
-      // } else if (this.$i18n.state.currentLanguage === 'en-US') {
-      //   msg.message = "Please reply in English to the following: " + msg.message;
-      // }
       this.inputMessage = ''
       this.scrollToBottom()
       this.$nextTick(() => {
@@ -230,19 +248,47 @@ export default {
       }
       
       try {
-        console.log(apiUrl)
+        // 标记当前是否在思考模式
+        if (this.deepThink){
+          this.thinkingIndex = this.messages.length;
+        }
+        let currentContent = '';
+        let thinkingContent = '';
+        
         const response = await apiClient.post(apiUrl, {
-          content: msg.message
+          content: msg.content,
+          thinking: this.deepThink
         }, {
           responseType: 'stream',
           onDownloadProgress: (progressEvent) => {
             const chunk = progressEvent.event.target.response;
             if (chunk) {
               this.loading = false;
+              
+              // 检查是否包含思考结束标记
+              if (chunk.includes('$thinkEnd$') && this.thinkingIndex !== -1) {
+                // 分离思考内容和回答内容
+                const parts = chunk.split('$thinkEnd$');
+                currentContent = parts[1] || '';
+                this.thinkingIndex = -1;
+              } else if (this.thinkingIndex !== -1) {
+                // 仍在思考模式，所有内容都是思考内容
+                thinkingContent = chunk;
+                currentContent = '';
+              } else if (chunk.includes('$thinkEnd$')){
+                // 分离思考内容和回答内容
+                const parts = chunk.split('$thinkEnd$');
+                currentContent = parts[1] || '';
+              } else {
+                // 不在思考模式，所有内容都是回答内容
+                currentContent = chunk;
+              }
+              
               // 更新AI回复消息
               this.messages[aiMessageIndex] = {
                 role: 'ai',
-                content: chunk
+                content: currentContent,
+                thinkingContent: thinkingContent
               };
               
               // 滚动到底部
@@ -299,7 +345,18 @@ export default {
         
         const data = response.data;
         if (data.messages && Array.isArray(data.messages)) {
-          this.messages = data.messages;
+          const processedMessages = data.messages.map(message => {
+            if (message.role === 'ai' && message.content) {
+              return {
+                ...message,
+                thinkingContent: message.think_content,
+                content: message.content
+              };
+            }
+            return message;
+          });
+          this.messages = processedMessages;
+          console.log(this.messages)
           this.currentConversationId = conversationId;
         }
       } catch (error) {
@@ -384,7 +441,12 @@ export default {
     },
     
     toggleThinkMode() {
-      this.isDeepThinking = !this.isDeepThinking;
+      this.deepThink = !this.deepThink;
+    },
+
+    // 切换思考内容的显示/隐藏
+    toggleThinking(index) {
+      this.collapsedThinking[index] = !this.collapsedThinking[index];
     }
   },
 
@@ -808,5 +870,91 @@ kbd {
 .markdown-content :deep(img) {
   max-width: 100%;
   border-radius: 5px;
+}
+
+/* 思考容器样式 */
+.thinking-container {
+  margin-bottom: 16px;
+  background-color: var(--thinking-bg, #f5f7fa);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  border: 1px solid var(--thinking-border, #e1e4e8);
+  transition: all 0.3s ease;
+  max-height: 2000px;
+  overflow: hidden;
+}
+
+.thinking-container.collapsed {
+  padding: 12px 16px;
+  max-height: 50px; /* 折叠时的高度 */
+}
+
+[data-theme="dark"] .thinking-container {
+  background-color: var(--thinking-bg, rgba(55, 65, 81, 0.2));
+  border-color: var(--thinking-border, rgba(75, 85, 99, 0.4));
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.thinking-icon {
+  color: var(--thinking-icon, #f59e0b);
+}
+
+.thinking-content {
+  color: var(--thinking-text, #6b7280);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: opacity 0.3s ease;
+}
+
+/* 最终回答容器 */
+.answer-container {
+  padding: 4px 0;
+}
+
+.thinking-container.collapsed .thinking-content {
+  opacity: 0;
+}
+
+/* 添加折叠按钮样式 */
+.collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin-left: auto;
+  transition: color 0.2s ease;
+}
+
+.collapse-btn:hover {
+  color: var(--primary-color);
+}
+
+@media (max-width: 768px) {
+  .thinking-container {
+    padding: 12px;
+  }
+  
+  .thinking-header {
+    font-size: 0.8rem;
+  }
+  
+  .collapse-btn {
+    font-size: 0.7rem;
+  }
 }
 </style> 
