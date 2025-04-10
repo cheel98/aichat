@@ -312,11 +312,7 @@ func SendMessageHandler(c *gin.Context) {
 	aiService := services.GetDefaultDeepSeekService()
 
 	// 调用流式API获取回复，传递deep_thinking参数
-	aiReply, aiThinking, err := aiService.StreamChatResponse(req.Content, flushWriter, req.DeepThinking)
-	if err != nil {
-		c.Error(err)
-		return
-	}
+	aiReply, aiThinking, _ := aiService.StreamChatResponse(req.Content, flushWriter, req.DeepThinking)
 
 	// 根据是否是重试，决定保存到哪个表
 	if isRetry {

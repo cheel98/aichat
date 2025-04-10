@@ -116,7 +116,7 @@ export default {
     
     onAuthSuccess() {
       this.showAuthModal = false;
-      
+      this.$emit("auth-success")
       // 如果在模态框登录成功，跳转到首页
       if (this.$router) {
         this.$router.push('/');

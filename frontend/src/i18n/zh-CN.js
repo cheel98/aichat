@@ -22,7 +22,7 @@ export default {
     welcomeDesc: '开始与AI对话，Raspberry将为您提供智能、有趣的回答',
     me: '我',
     enterHint: '按 Enter 发送，Shift+Enter 换行',
-    think: '思考模式',
+    think: '思考',
     showThinking: '显示思考过程',
     hideThinking: '隐藏思考过程',
     exampleQuestions: [

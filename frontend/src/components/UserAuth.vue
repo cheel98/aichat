@@ -234,14 +234,10 @@ export default {
       this.loginForm.login_type = emailRegex.test(this.loginForm.account) ? 1 : 2;
       
       try {
-        console.log('登录提交:', this.loginForm);
         const user = await userStore.login(this.loginForm);
-        console.log('登录成功，用户信息:', user);
         this.$emit('auth-success');
-        
         // 获取重定向地址或默认跳转到首页
         const redirectPath = this.$route.query.redirect || '/';
-        console.log('即将跳转到:', redirectPath);
         this.$router.push(redirectPath);
       } catch (error) {
         console.error('登录失败:', error);

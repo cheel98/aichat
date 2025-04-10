@@ -50,16 +50,15 @@ export const authAPI = {
   // 用户登录
   login: (credentials) => {
     return apiClient.post('/auth/login', credentials);
-  },
-  
-  // 用户登出
-  logout: () => {
-    return apiClient.post('/auth/logout');
   }
 };
 
 // 用户相关API
 export const userAPI = {
+  // 用户登出
+  logout: () => {
+    return apiClient.post('/user/logout');
+  },
   // 获取用户资料
   getProfile: () => {
     return apiClient.get('/user/profile');

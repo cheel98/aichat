@@ -137,8 +137,10 @@ export default {
       }
     },
     selectConversation(id) {
-      this.selectedConversationId = id;
-      this.$emit('select-conversation', id);
+      if (this.selectedConversationId !==id) {
+        this.selectedConversationId = id;
+        this.$emit('select-conversation', id);
+      }
     },
     
     startNewChat() {

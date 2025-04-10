@@ -1,7 +1,18 @@
 <template>
   <div class="chat-container">
     <div class="chat-messages" ref="messageContainer">
-      <div v-if="messages.length === 0" class="empty-state">
+      <!-- 加载对话历史时显示的加载指示器 -->
+      <div v-if="isLoadingConversation" class="loading-container">
+        <div class="loading-spinner">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"></path>
+          </svg>
+        </div>
+        <div class="loading-text"></div>
+      </div>
+      
+      <div v-else-if="messages.length === 0" class="empty-state">
         <div class="empty-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10" />
@@ -31,7 +42,7 @@
               <span>AI</span>
             </div>
           </div>
-          <div :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']">
+          <div :class="['message', message.role === 'user' ? 'user-message' : 'ai-message', editingMessageIndex === index ? 'editing-mode' : '']">
             <div v-if="message.role === 'user'">
               <!-- 编辑模式下显示输入框，否则显示消息内容 -->
               <div v-if="editingMessageIndex === index" class="user-message-content edit-input-container">
@@ -49,26 +60,18 @@
                 </div>
               </div>
               <div v-else class="user-message-content">
-                <span class="message-text">{{ message.content }}</span>
-                <!-- 用户消息控制按钮 -->
-                <div class="user-message-controls">
+                <!-- 用户消息控制按钮 - 只保留编辑按钮 -->
+                <div class="user-message-controls left-controls">
                   <button 
                     @click="editUserMessage(index, message.content, message.message_id)" 
                     class="edit-button" 
-                    :disabled="loading"
+                    :disabled="answering"
                     title="修改问题"
                   >
                     <i class="bi bi-pencil"></i>
                   </button>
-                  <button 
-                    @click="regenerateResponse(message.message_id, index)" 
-                    class="regenerate-button" 
-                    :disabled="loading"
-                    title="重新生成回答"
-                  >
-                    <i class="bi bi-arrow-repeat"></i>
-                  </button>
                 </div>
+                <span class="message-text">{{ message.content }}</span>
               </div>
             </div>
             <div v-else>
@@ -87,52 +90,105 @@
                   </div>
                   <div v-show="collapsedThinking[index]" v-html="renderMarkdown(message.thinkingContent)" class="markdown-content thinking-content"></div>
                 </div>
-                <div class="answer-container">
-                  <div v-html="renderMarkdown(message.content)" class="markdown-content"></div>
+                <div class="ai-content-wrapper">
+                  <div class="answer-container">
+                    <div v-html="renderMarkdown(message.content)" class="markdown-content"></div>
+                  </div>
+                  
+                  <!-- AI回复的控制按钮 -->
+                  <div class="ai-response-controls">
+                    <!-- 添加重新生成按钮到AI回答的左下方 -->
+                    <button 
+                      @click="regenerateResponse(message.message_id, index)" 
+                      class="regenerate-button ai-regenerate-button" 
+                      :disabled="answering"
+                      title="重新生成回答"
+                    >
+                      <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                    
+                    <!-- 只有当有多个回答时才显示版本选择 -->
+                    <div v-if="message.alternative_responses && message.alternative_responses.length > 0" class="response-versions">
+                      <span class="versions-label">选择回答版本:</span>
+                      <div class="version-buttons">
+                        <!-- 原始回答 -->
+                        <button 
+                          @click="selectResponseVersion(message.message_id, 1)" 
+                          :class="['version-btn', message.is_active ? 'active' : '']"
+                          title="原始回答"
+                        >
+                          1
+                        </button>
+                        
+                        <!-- 其他回答 -->
+                        <button 
+                          v-for="(response, rIndex) in message.alternative_responses" 
+                          :key="'r-' + rIndex"
+                          @click="selectResponseVersion(message.message_id, response.version)" 
+                          :class="['version-btn', response.is_active ? 'active' : '']"
+                          :title="`回答 ${response.version}`"
+                        >
+                          {{ response.version }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </template>
               <template v-else>
-                <div v-html="renderMarkdown(message.content)" class="markdown-content"></div>
-              </template>
-              
-              <!-- AI回复的控制按钮 -->
-              <div class="ai-response-controls">
-                <!-- 只有当有多个回答时才显示版本选择 -->
-                <div v-if="message.alternative_responses && message.alternative_responses.length > 0" class="response-versions">
-                  <span class="versions-label">选择回答版本:</span>
-                  <div class="version-buttons">
-                    <!-- 原始回答 -->
+                <div class="ai-content-wrapper">
+                  <div v-html="renderMarkdown(message.content)" class="markdown-content"></div>
+                  
+                  <!-- AI回复的控制按钮 -->
+                  <div class="ai-response-controls">
+                    <!-- 添加重新生成按钮到AI回答的左下方 -->
                     <button 
-                      @click="selectResponseVersion(message.message_id, 1)" 
-                      :class="['version-btn', message.is_active ? 'active' : '']"
-                      title="原始回答"
+                      @click="regenerateResponse(message.message_id, index)" 
+                      class="regenerate-button ai-regenerate-button" 
+                      :disabled="answering"
+                      title="重新生成回答"
                     >
-                      1
+                      <i class="bi bi-arrow-repeat"></i>
                     </button>
                     
-                    <!-- 其他回答 -->
-                    <button 
-                      v-for="(response, rIndex) in message.alternative_responses" 
-                      :key="'r-' + rIndex"
-                      @click="selectResponseVersion(message.message_id, response.version)" 
-                      :class="['version-btn', response.is_active ? 'active' : '']"
-                      :title="`回答 ${response.version}`"
-                    >
-                      {{ response.version }}
-                    </button>
+                    <!-- 只有当有多个回答时才显示版本选择 -->
+                    <div v-if="message.alternative_responses && message.alternative_responses.length > 0" class="response-versions">
+                      <span class="versions-label">选择回答版本:</span>
+                      <div class="version-buttons">
+                        <!-- 原始回答 -->
+                        <button 
+                          @click="selectResponseVersion(message.message_id, 1)" 
+                          :class="['version-btn', message.is_active ? 'active' : '']"
+                          title="原始回答"
+                        >
+                          1
+                        </button>
+                        
+                        <!-- 其他回答 -->
+                        <button 
+                          v-for="(response, rIndex) in message.alternative_responses" 
+                          :key="'r-' + rIndex"
+                          @click="selectResponseVersion(message.message_id, response.version)" 
+                          :class="['version-btn', response.is_active ? 'active' : '']"
+                          :title="`回答 ${response.version}`"
+                        >
+                          {{ response.version }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </template>
             </div>
           </div>
         </div>
-        <div v-if="loading" class="message-wrapper ai-wrapper">
+        <div v-if="waitResponse" class="message-wrapper ai-wrapper">
           <div class="message-avatar">
             <div class="ai-avatar">
               <span>AI</span>
             </div>
           </div>
-          <div class="message ai-message loading-message">
+          <div class="message ai-message answering-message">
             <div class="typing-indicator">
               <span></span>
               <span></span>
@@ -148,20 +204,23 @@
           v-model="inputMessage" 
           @keydown="handleKeyDown"
           :placeholder="$t('chat.placeholder')"
-          :disabled="loading"
+          :disabled="answering || isLoadingConversation"
           rows="1"
           ref="messageInput"
           @input="autoResize"
         ></textarea>
         <button 
-          @click="sendMessage" 
+          @click="answering ? stopRequest() : sendMessage()" 
           class="send-button"
-          :disabled="loading || !inputMessage.trim()"
-          :class="{ 'active': inputMessage.trim() }"
+          :disabled="(!answering && !inputMessage.trim()) || isLoadingConversation"
+          :class="{ 'active': inputMessage.trim() || answering, 'stop-button': answering }"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg v-if="!answering" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
           </svg>
         </button>
       </div>
@@ -170,6 +229,7 @@
           @click="toggleThinkMode" 
           class="think-button"
           :class="{ 'active': deepThink }"
+          :disabled="isLoadingConversation"
         >
           <span class="think-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -209,7 +269,8 @@ export default {
     return {
       inputMessage: '',
       messages: [],
-      loading: false,
+      answering: false,
+      waitResponse: false,
       currentConversationId: null,
       deepThink: false,
       collapsedThinking: {}, // 追踪每个消息的折叠状态
@@ -218,15 +279,19 @@ export default {
       pendingResponseVersion: null, // 等待设置为激活的响应版本
       editingMessageIndex: -1, // 当前正在编辑的消息索引
       editingMessageId: null, // 当前正在编辑的消息ID
-      editingContent: '' // 正在编辑的内容
+      editingContent: '', // 正在编辑的内容
+      isLoadingConversation: false, // 新增：标记对话历史是否正在加载
+      abortController: null, // 新增：用于取消请求的控制器
+      tempUserMessage: null, // 新增：临时存储用户消息
+      hasReceivedResponse: false // 新增：标记是否已收到AI响应
     }
   },
   
   watch: {
     conversationId: {
       immediate: true,
-      handler(newId) {
-        if (newId) {
+      handler(newId, oldId) {
+        if (newId && newId !== oldId) {
           this.loadConversation(newId);
         }
       }
@@ -269,19 +334,23 @@ export default {
     },
     
     async sendMessage() {
-      if (!this.inputMessage.trim() || this.loading) {
+      if (!this.inputMessage.trim() || this.answering) {
         return
       }
       
       // 正常发送新消息
-      // 添加用户消息
-      this.messages.push({
+      this.tempUserMessage = {
         role: 'user',
         content: this.inputMessage,
         message_id: uuidv4() // 生成客户端消息ID
-      })
+      }
       
-      this.loading = true
+      // 添加用户消息
+      this.messages.push({...this.tempUserMessage})
+      
+      this.answering = true
+      this.waitResponse = true
+      this.hasReceivedResponse = false
 
       // 添加一个空的AI回复消息，用于流式更新
       const aiMessageIndex = this.messages.length
@@ -300,40 +369,45 @@ export default {
         this.autoResize()
       })
       
+      // 创建新的AbortController
+      this.abortController = new AbortController()
+      
       // 准备API请求URL
       let apiUrl;
-      if (this.currentConversationId) {
-        // 如果已有会话ID，使用现有会话
-        apiUrl = `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}`;
-      } else {
-        // 如果是新会话，先创建会话
-        const sessionRes = await apiClient.post('/chat/sessions', {
-          title: userInput.length > 30 ? userInput.substring(0, 30) + '...' : userInput
-        });
-        if (sessionRes.status !== 201) {
-          ElMessage.error(sessionRes.statusText);
-          this.messages[aiMessageIndex] = {
-            role: 'ai',
-            content: sessionRes.statusText
-          };
-          this.loading = false;
-          return;
-        }
-        console.log(sessionRes.data)
-        
-        const sessionData = sessionRes.data;
-        this.currentConversationId = sessionData.session_id;
-        apiUrl = `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}`;
-        
-        // 更新URL以包含会话ID
-        this.updateUrlWithSessionId();
-      }
-      
       try {
+        if (this.currentConversationId) {
+          // 如果已有会话ID，使用现有会话
+          apiUrl = `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}`;
+        } else {
+          // 如果是新会话，先创建会话
+          const sessionRes = await apiClient.post('/chat/sessions', {
+            title: userInput.length > 30 ? userInput.substring(0, 30) + '...' : userInput
+          });
+          if (sessionRes.status !== 201) {
+            ElMessage.error(sessionRes.statusText);
+            this.messages[aiMessageIndex] = {
+              role: 'ai',
+              content: sessionRes.statusText
+            };
+            this.answering = false;
+            this.waitResponse = true
+            return;
+          }
+          console.log(sessionRes.data)
+          
+          const sessionData = sessionRes.data;
+          this.currentConversationId = sessionData.session_id;
+          apiUrl = `${API_BASE_URL}/api/chat/sessions/${this.currentConversationId}`;
+          
+          // 更新URL以包含会话ID
+          this.updateUrlWithSessionId();
+        }
+        
         // 标记当前是否在思考模式
         if (this.deepThink){
           this.thinkingIndex = this.messages.length;
         }
+        
         let currentContent = '';
         let thinkingContent = '';
         let messageId = '';
@@ -347,8 +421,8 @@ export default {
           onDownloadProgress: (progressEvent) => {
             const chunk = progressEvent.event.target.response;
             if (chunk) {
-              this.loading = false;
-              
+              this.hasReceivedResponse = true;
+              this.waitResponse = false
               // 检查是否包含消息ID或版本标识
               if (chunk.includes('$messageId$')) {
                 const parts = chunk.split('$messageId$');
@@ -386,11 +460,17 @@ export default {
                 message_id: messageId,
                 is_active: true
               };
-              
-              // 滚动到底部
-              this.scrollToBottom();
+              // 只有在用户已经在底部时才滚动
+              const container = this.$refs.messageContainer;
+              if (container) {
+                const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+                if (isAtBottom) {
+                  this.scrollToBottom();
+                }
+              }
             }
-          }
+          },
+          signal: this.abortController.signal
         });
         
         // 如果是重试消息的响应
@@ -407,15 +487,36 @@ export default {
           await this.loadConversation(this.currentConversationId);
         }
         
-        // 流式传输完成，保存对话
-        this.saveConversation();
+        // 只有当接收到AI回复后才保存对话
+        if (this.hasReceivedResponse) {
+          this.saveConversation();
+        }
+        
       } catch (error) {
-        console.error(this.$t('chat.streamError'), error);
-        this.messages[aiMessageIndex] = {
-          role: 'ai',
-          content: this.$t('chat.errorMessage')
-        };
-        this.loading = false;
+        // 检查是否是被用户主动取消的请求
+        if (error.code === 'ERR_CANCELED') {
+          console.log('请求被用户取消');
+          // 如果已经收到一些响应，保留已收到的内容
+          if (this.hasReceivedResponse) {
+            // 标记回答已完成
+            this.saveConversation();
+          } else {
+            // 如果没有收到响应，从聊天列表中移除最后一条消息（AI消息）
+            if (this.messages.length > 0 && this.messages[this.messages.length - 1].role === 'ai') {
+              this.messages.pop();
+            }
+          }
+        } else {
+          console.error(this.$t('chat.streamError'), error);
+          this.messages[aiMessageIndex] = {
+            role: 'ai',
+            content: this.$t('chat.errorMessage')
+          };
+        }
+      } finally {
+        this.answering = false;
+        this.abortController = null;
+        this.thinkingIndex = -1;
       }
     },
     
@@ -446,7 +547,8 @@ export default {
     // 加载特定对话的消息历史
     async loadConversation(conversationId) {
       this.clearMessages();
-      this.loading = true;
+      this.answering = true;
+      this.isLoadingConversation = true; // 开始加载时设置状态
       
       try {
         const response = await apiClient.get(`/chat/sessions/${conversationId}`);
@@ -481,7 +583,8 @@ export default {
       } catch (error) {
         console.error(this.$t('chat.loadHistoryErrorLog'), error);
       } finally {
-        this.loading = false;
+        this.isLoadingConversation = false; // 完成加载时重置状态
+        this.answering = false;
         this.scrollToBottom();
       }
     },
@@ -612,7 +715,7 @@ export default {
     
     // 保存编辑并发送
     async saveEdit(index, messageId) {
-      if (!this.editingContent.trim() || this.loading) {
+      if (!this.editingContent.trim() || this.answering) {
         return;
       }
       
@@ -657,11 +760,10 @@ export default {
       // 退出编辑模式
       this.cancelEdit();
       
-      // 保存会话以更新用户消息内容
-      await this.saveConversation();
+      // 先不保存会话，等收到AI回复后再保存
       
       // 重新发送消息
-      this.loading = true;
+      this.answering = true;
       
       try {
         // 准备API请求URL
@@ -675,6 +777,7 @@ export default {
         let currentContent = '';
         let thinkingContent = '';
         let responseMessageId = '';
+        let hasReceivedAIResponse = false;
         
         const response = await apiClient.post(apiUrl, {
           content: editedContent,
@@ -684,7 +787,8 @@ export default {
           onDownloadProgress: (progressEvent) => {
             const chunk = progressEvent.event.target.response;
             if (chunk) {
-              this.loading = false;
+              this.answering = false;
+              hasReceivedAIResponse = true;
               
               // 检查是否包含消息ID或版本标识
               if (chunk.includes('$messageId$')) {
@@ -736,8 +840,10 @@ export default {
           }
         });
         
-        // 流式传输完成，保存对话
-        await this.saveConversation();
+        // 只有在收到AI回复后才保存对话
+        if (hasReceivedAIResponse) {
+          await this.saveConversation();
+        }
       } catch (error) {
         console.error(this.$t('chat.streamError'), error);
         if (!this.messages[index + 1] || this.messages[index + 1].role !== 'ai') {
@@ -747,7 +853,7 @@ export default {
             message_id: ''
           });
         }
-        this.loading = false;
+        this.answering = false;
       }
     },
     
@@ -770,9 +876,9 @@ export default {
 
     // 重试生成新回答
     async retryMessage(messageId) {
-      if (this.loading) return;
+      if (this.answering) return;
       
-      this.loading = true;
+      this.answering = true;
       this.retryingMessageId = messageId;
       
       try {
@@ -784,7 +890,7 @@ export default {
           onDownloadProgress: (progressEvent) => {
             const chunk = progressEvent.event.target.response;
             if (chunk) {
-              this.loading = false;
+              this.answering = false;
               
               // 检查是否包含版本信息
               if (chunk.includes('$responseVersion$')) {
@@ -807,14 +913,14 @@ export default {
       } catch (error) {
         console.error('重试消息失败:', error);
         ElMessage.error(this.$t('chat.retryError') || '重试失败');
-        this.loading = false;
+        this.answering = false;
         this.retryingMessageId = null;
       }
     },
     
     // 选择特定版本的回答
     async selectResponseVersion(messageId, version) {
-      if (this.loading) return;
+      if (this.answering) return;
       
       try {
         const response = await apiClient.put('/chat/response/active', {
@@ -831,6 +937,14 @@ export default {
       } catch (error) {
         console.error('设置活跃版本失败:', error);
         ElMessage.error(this.$t('chat.setActiveError') || '切换版本失败');
+      }
+    },
+
+    // 添加停止请求方法
+    stopRequest() {
+      if (this.abortController) {
+        this.abortController.abort();
+        this.abortController = null;
       }
     }
   },
@@ -990,36 +1104,55 @@ export default {
   box-sizing: border-box;
 }
 
-.user-message > div {
-  width: 100%;
-  word-break: break-word;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+/* 编辑模式下的消息需要更宽 */
+.message-wrapper:has(.edit-input-container) .user-message {
+  max-width: 80%;
+  width: 80%;
 }
 
-.user-message > div > span {
-  align-self: flex-start;
+/* 编辑模式下的消息备用方案（针对不支持:has选择器的浏览器） */
+.message-wrapper .user-message .edit-input-container {
+  width: 100%;
 }
 
-.user-message > div > .user-message-controls {
-  width: 100%;
-  justify-content: flex-end;
+.editing-mode.user-message {
+  max-width: 80% !important;
+  width: 80% !important;
 }
 
 .user-message-content {
   display: flex;
   flex-direction: column;
   width: 100%;
+  position: relative;
+}
+
+.message-text {
+  text-align: left;
+  align-self: flex-start;
+  margin-bottom: 4px;
 }
 
 .ai-message {
   background-color: var(--ai-message-bg);
   color: var(--text-color);
   border-top-left-radius: 4px;
+  position: relative; /* 添加相对定位用于分隔线 */
+  padding-bottom: 20px; /* 增加底部内边距，为分隔线腾出空间 */
 }
 
-.loading-message {
+.ai-message::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e53935; /* 红色分隔线 */
+  opacity: 0.7;
+}
+
+.answering-message {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1131,6 +1264,15 @@ textarea::placeholder {
   background-color: rgba(29, 155, 240, 0.2);
 }
 
+.send-button.stop-button {
+  color: #f44336;
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+.send-button.stop-button:hover {
+  background-color: rgba(244, 67, 54, 0.2);
+}
+
 .send-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -1165,6 +1307,11 @@ textarea::placeholder {
   color: var(--primary-color);
   background-color: rgba(29, 155, 240, 0.15);
   border-color: var(--primary-color);
+}
+
+.think-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .think-icon {
@@ -1388,6 +1535,12 @@ kbd {
   align-items: center;
   gap: 10px;
   margin-top: 8px;
+  opacity: 0; /* 默认隐藏按钮 */
+  transition: opacity 0.2s ease;
+}
+
+.ai-content-wrapper:hover .ai-response-controls {
+  opacity: 1; /* 鼠标悬停时显示按钮 */
 }
 
 .retry-button {
@@ -1456,18 +1609,6 @@ kbd {
   border-color: var(--primary-color);
 }
 
-.user-message-content {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.message-text {
-  text-align: left;
-  align-self: flex-start;
-  margin-bottom: 4px;
-}
-
 .user-message-controls {
   display: flex;
   justify-content: flex-end;
@@ -1477,6 +1618,18 @@ kbd {
   opacity: 0;
   transition: opacity 0.2s ease;
   width: 100%;
+}
+
+/* 添加左侧控制按钮样式 */
+.left-controls {
+  position: absolute;
+  left: -80px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: row; /* 改为横向排列 */
+  width: auto;
+  margin-top: 0;
+  gap: 5px; /* 添加按钮之间的间距 */
 }
 
 .user-message:hover .user-message-controls {
@@ -1494,12 +1647,17 @@ kbd {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
+}
+
+/* 添加AI回答重新生成按钮的样式 */
+.ai-regenerate-button {
+  margin-right: auto; /* 将按钮推到最左侧 */
+  background: transparent;
 }
 
 .edit-button:hover, .regenerate-button:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: white;
+  color: var(--primary-color);
 }
 
 .edit-button:disabled, .regenerate-button:disabled {
@@ -1511,7 +1669,7 @@ kbd {
   width: 100%;
   position: relative;
   max-width: 100%; /* 使用100%而不是inherit以确保与父元素宽度一致 */
-  min-width: unset; /* 移除最小宽度限制，使其完全跟随气泡宽度 */
+  min-width: 100%; /* 确保编辑模式下宽度占满聊天框 */
 }
 
 .edit-textarea {
@@ -1568,5 +1726,56 @@ kbd {
 
 .edit-save-btn:hover {
   background: rgba(255, 255, 255, 0.9);
+}
+
+/* 加载对话历史的样式 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.loading-spinner {
+  margin-bottom: 1rem;
+  animation: spin 1.5s linear infinite;
+}
+
+.loading-text {
+  font-size: 1.1rem;
+  color: var(--text-color, #444);
+  margin-top: 0.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 添加AI内容包装器样式 */
+.ai-content-wrapper {
+  position: relative;
+  padding-bottom: 20px; /* 增加底部内边距，为分隔线腾出空间 */
+}
+
+.ai-content-wrapper::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e53935; /* 红色分隔线 */
+  opacity: 0.7;
+}
+
+.ai-message {
+  background-color: var(--ai-message-bg);
+  color: var(--text-color);
+  border-top-left-radius: 4px;
 }
 </style> 

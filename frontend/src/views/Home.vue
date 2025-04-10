@@ -25,7 +25,7 @@
       <div class="header-right">
         <ThemeToggle />
         <LanguageToggle />
-        <UserMenu @navigate="handleNavigation" @logout="handleLogout" />
+        <UserMenu @navigate="handleNavigation" @logout="handleLogout" @auth-success="handleAuthSuccess" />
       </div>
     </header>
     
@@ -113,18 +113,26 @@ export default {
       showProfileModal: false
     };
   },
-  
+
   methods: {
     closeProfileModal() {
       this.showProfileModal = false;
     },
     closeSettingsModal() {
-      
+      this.showSettingsModal = false;
+    },
+    closeModals() {
+      this.showSettingsModal = false;
+      this.showProfileModal = false;
     },
     handleLogout() {
       this.$refs.chatHistory.logout();
       this.$refs.chatInterface.logout();
       this.currentConversationId = null;
+    },
+    handleAuthSuccess(){
+      console.log("handleAuthSuccess")
+      this.$refs.chatHistory.fetchConversations();
     },
     handleNavigation(page) {
       switch (page) {
@@ -140,10 +148,6 @@ export default {
       }
     },
     
-    closeModals() {
-      this.showSettingsModal = false;
-      this.showProfileModal = false;
-    },
     
     toggleSidebar() {
       this.isSidebarOpen = !this.isSidebarOpen;

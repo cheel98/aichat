@@ -77,7 +77,7 @@ const actions = {
     
     try {
       // 调用登出API
-      await authAPI.logout();
+      await userAPI.logout();
     } catch (error) {
       console.error('登出时发生错误:', error);
     } finally {
